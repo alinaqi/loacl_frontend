@@ -1,0 +1,13 @@
+{
+  "welcome": "Welcome to Multi-language Demo",
+  "description": "This demo showcases language switching capabilities",
+  "switchLanguage": "Switch Language",
+  "content": {
+    "title": "Sample Content",
+    "paragraph": "This is a sample paragraph showing how content can be translated into different languages.",
+    "button": "Click Me"
+  },
+  "footer": {
+    "text": "Current language"
+  }
+} 

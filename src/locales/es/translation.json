@@ -1,0 +1,13 @@
+{
+  "welcome": "Bienvenido a la Demo Multi-idioma",
+  "description": "Esta demo muestra capacidades de cambio de idioma",
+  "switchLanguage": "Cambiar Idioma",
+  "content": {
+    "title": "Contenido de Ejemplo",
+    "paragraph": "Este es un párrafo de ejemplo que muestra cómo el contenido puede ser traducido a diferentes idiomas.",
+    "button": "Haz Clic"
+  },
+  "footer": {
+    "text": "Idioma actual"
+  }
+} 
