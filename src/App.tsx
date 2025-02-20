@@ -98,7 +98,7 @@ const Home = () => (
       </div>
       
       <div className="text-center mt-8 text-sm text-gray-500">
-        © 2024 LeanAI Ventures LLC. All rights reserved.
+        © 2025 LeanAI Ventures LLC. All rights reserved.
       </div>
     </div>
   </div>
