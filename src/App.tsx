@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Navigation } from './components/Navigation';
+import { Footer } from './components/Footer';
 import { BasicDemo } from './pages/BasicDemo';
 import { EcommerceDemo } from './pages/EcommerceDemo';
 import { SupportDemo } from './pages/SupportDemo';
@@ -96,10 +97,6 @@ const Home = () => (
           </div>
         </div>
       </div>
-      
-      <div className="text-center mt-8 text-sm text-gray-500">
-        © 2025 LeanAI Ventures LLC. All rights reserved.
-      </div>
     </div>
   </div>
 );
@@ -107,16 +104,19 @@ const Home = () => (
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navigation />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/basic" element={<BasicDemo />} />
-          <Route path="/ecommerce" element={<EcommerceDemo />} />
-          <Route path="/support" element={<SupportDemo />} />
-          <Route path="/playground" element={<PlaygroundDemo />} />
-          <Route path="/features" element={<AllFeaturesDemo />} />
-        </Routes>
+        <div className="flex-grow">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/basic" element={<BasicDemo />} />
+            <Route path="/ecommerce" element={<EcommerceDemo />} />
+            <Route path="/support" element={<SupportDemo />} />
+            <Route path="/playground" element={<PlaygroundDemo />} />
+            <Route path="/features" element={<AllFeaturesDemo />} />
+          </Routes>
+        </div>
+        <Footer />
       </div>
     </BrowserRouter>
   );
