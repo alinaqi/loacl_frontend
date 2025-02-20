@@ -9,6 +9,7 @@ export const Navigation = () => {
     { path: '/basic', label: 'Basic Demo' },
     { path: '/ecommerce', label: 'E-commerce Demo' },
     { path: '/support', label: 'Support Demo' },
+    { path: '/playground', label: 'Playground' },
   ];
 
   return (
