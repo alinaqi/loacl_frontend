@@ -5,6 +5,7 @@ import { BasicDemo } from './pages/BasicDemo';
 import { EcommerceDemo } from './pages/EcommerceDemo';
 import { SupportDemo } from './pages/SupportDemo';
 import { PlaygroundDemo } from './pages/PlaygroundDemo';
+import { AllFeaturesDemo } from './pages/AllFeaturesDemo';
 
 const Home = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -114,6 +115,7 @@ function App() {
           <Route path="/ecommerce" element={<EcommerceDemo />} />
           <Route path="/support" element={<SupportDemo />} />
           <Route path="/playground" element={<PlaygroundDemo />} />
+          <Route path="/features" element={<AllFeaturesDemo />} />
         </Routes>
       </div>
     </BrowserRouter>
