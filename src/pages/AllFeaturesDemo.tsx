@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChatWidget } from '../components/ChatWidget';
+import { CodeSnippets } from '../components/CodeSnippets';
 
 interface DemoSection {
   title: string;
@@ -26,6 +27,166 @@ interface DemoSection {
     };
   };
 }
+
+const demoSnippets = [
+  {
+    title: 'Basic Integration',
+    description: 'Simple integration of the chat widget with default settings.',
+    language: 'typescript',
+    code: `import { ChatWidget } from '@loacl/react';
+
+export const BasicDemo = () => {
+  return (
+    <div className="your-container">
+      <ChatWidget
+        customStyles={{
+          '--primary-color': '#2563eb',
+          '--secondary-color': '#1d4ed8',
+          '--text-color': '#111827',
+          '--bg-color': '#ffffff',
+          '--font-family': 'Inter, system-ui, sans-serif',
+          '--font-size': '14px',
+        }}
+        features={{
+          showFileUpload: true,
+          showVoiceInput: true,
+          showEmoji: true,
+        }}
+      />
+    </div>
+  );
+};`,
+  },
+  {
+    title: 'Dark Theme',
+    description: 'Integration with dark theme customization.',
+    language: 'typescript',
+    code: `import { ChatWidget } from '@loacl/react';
+
+export const DarkThemeDemo = () => {
+  return (
+    <div className="your-container">
+      <ChatWidget
+        customStyles={{
+          '--primary-color': '#6d28d9',
+          '--secondary-color': '#5b21b6',
+          '--text-color': '#f3f4f6',
+          '--bg-color': '#1f2937',
+          '--font-family': 'Inter, system-ui, sans-serif',
+          '--font-size': '14px',
+          '--message-bubble-color': '#374151',
+          '--user-message-color': '#4c1d95',
+        }}
+      />
+    </div>
+  );
+};`,
+  },
+  {
+    title: 'File Upload',
+    description: 'Implementation focusing on file upload functionality.',
+    language: 'typescript',
+    code: `import { ChatWidget } from '@loacl/react';
+
+export const FileUploadDemo = () => {
+  return (
+    <div className="your-container">
+      <ChatWidget
+        customStyles={{
+          '--primary-color': '#059669',
+          '--secondary-color': '#047857',
+        }}
+        features={{
+          showFileUpload: true,
+          showVoiceInput: false,
+          showEmoji: false,
+        }}
+        onFileUpload={(file) => {
+          console.log('File uploaded:', file);
+          // Handle file upload logic
+        }}
+      />
+    </div>
+  );
+};`,
+  },
+  {
+    title: 'Voice Input',
+    description: 'Implementation with voice input capabilities.',
+    language: 'typescript',
+    code: `import { ChatWidget } from '@loacl/react';
+
+export const VoiceInputDemo = () => {
+  return (
+    <div className="your-container">
+      <ChatWidget
+        customStyles={{
+          '--primary-color': '#dc2626',
+          '--secondary-color': '#b91c1c',
+        }}
+        features={{
+          showFileUpload: false,
+          showVoiceInput: true,
+          showEmoji: false,
+        }}
+        onVoiceInput={(transcript) => {
+          console.log('Voice input:', transcript);
+          // Handle voice input logic
+        }}
+      />
+    </div>
+  );
+};`,
+  },
+  {
+    title: 'Emoji Support',
+    description: 'Implementation with emoji picker functionality.',
+    language: 'typescript',
+    code: `import { ChatWidget } from '@loacl/react';
+
+export const EmojiDemo = () => {
+  return (
+    <div className="your-container">
+      <ChatWidget
+        customStyles={{
+          '--primary-color': '#f59e0b',
+          '--secondary-color': '#d97706',
+        }}
+        features={{
+          showFileUpload: false,
+          showVoiceInput: false,
+          showEmoji: true,
+        }}
+        onEmojiSelect={(emoji) => {
+          console.log('Emoji selected:', emoji);
+          // Handle emoji selection logic
+        }}
+      />
+    </div>
+  );
+};`,
+  },
+  {
+    title: 'Custom Position',
+    description: 'Implementation with custom positioning.',
+    language: 'typescript',
+    code: `import { ChatWidget } from '@loacl/react';
+
+export const CustomPositionDemo = () => {
+  return (
+    <div className="your-container">
+      <ChatWidget
+        position="left"
+        customStyles={{
+          '--primary-color': '#8b5cf6',
+          '--secondary-color': '#7c3aed',
+        }}
+      />
+    </div>
+  );
+};`,
+  },
+];
 
 export const AllFeaturesDemo: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -138,7 +299,7 @@ export const AllFeaturesDemo: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
           {demoSections.map((section) => (
             <div
               key={section.title}
@@ -168,7 +329,14 @@ export const AllFeaturesDemo: React.FC = () => {
           ))}
         </div>
 
-        <div className="mt-12 text-center">
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+            Implementation Examples
+          </h2>
+          <CodeSnippets snippets={demoSnippets} />
+        </div>
+
+        <div className="text-center">
           <p className="text-gray-600">
             Visit our{' '}
             <a
