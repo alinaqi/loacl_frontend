@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOACL Chat Iframe Example</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 600px;
+        }
+        .chat-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .controls {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <iframe 
+            src="/iframe.html" 
+            class="chat-iframe"
+            id="chat-iframe"
+            title="Chat Interface"
+        ></iframe>
+    </div>
+
+    <div class="controls">
+        <h3>Demo Controls</h3>
+        <button onclick="toggleTheme()">Toggle Theme</button>
+        <button onclick="sendMessage()">Send Test Message</button>
+        <button onclick="setTyping()">Toggle Typing</button>
+    </div>
+
+    <script>
+        let isDark = false;
+        let isTyping = false;
+        const iframe = document.getElementById('chat-iframe');
+
+        // Wait for iframe to be ready
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'iframe-ready') {
+                console.log('Iframe is ready');
+            }
+            if (event.data.type === 'question-selected') {
+                console.log('Question selected:', event.data.payload.question);
+            }
+        });
+
+        function toggleTheme() {
+            isDark = !isDark;
+            iframe.contentWindow.postMessage({
+                type: 'theme',
+                payload: { theme: isDark ? 'dark' : 'light' }
+            }, '*');
+        }
+
+        function sendMessage() {
+            iframe.contentWindow.postMessage({
+                type: 'chat-message',
+                payload: {
+                    messages: [
+                        {
+                            id: Date.now().toString(),
+                            content: 'This is a test message',
+                            role: 'assistant',
+                            timestamp: new Date(),
+                            status: 'sent'
+                        }
+                    ],
+                    suggestedQuestions: [
+                        {
+                            id: '1',
+                            text: 'How does this work?',
+                            category: 'Help',
+                            priority: 1
+                        },
+                        {
+                            id: '2',
+                            text: 'Can I customize the theme?',
+                            category: 'Customization',
+                            priority: 2
+                        }
+                    ]
+                }
+            }, '*');
+        }
+
+        function setTyping() {
+            isTyping = !isTyping;
+            iframe.contentWindow.postMessage({
+                type: 'chat-message',
+                payload: { isTyping }
+            }, '*');
+        }
+    </script>
+</body>
+</html> 
