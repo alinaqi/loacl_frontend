@@ -35,6 +35,12 @@ describe('ChatLayout', () => {
       text: 'How do hooks work?',
       category: 'Basics',
       priority: 2
+    },
+    {
+      id: '3',
+      text: 'What is TypeScript?',
+      category: 'Advanced',
+      priority: 1
     }
   ];
 
@@ -73,5 +79,44 @@ describe('ChatLayout', () => {
   it('applies custom className', () => {
     const { container } = render(<ChatLayout className="custom-class" />);
     expect(container.firstChild).toHaveClass('custom-class');
+  });
+
+  describe('Mobile Responsiveness', () => {
+    it('shows fewer suggested questions on mobile', () => {
+      render(
+        <ChatLayout 
+          suggestedQuestions={mockSuggestedQuestions}
+          onQuestionSelect={() => {}}
+          isMobile={true}
+        />
+      );
+      
+      // Should only show 2 questions on mobile
+      expect(screen.getByText('What is React?')).toBeInTheDocument();
+      expect(screen.getByText('How do hooks work?')).toBeInTheDocument();
+      expect(screen.queryByText('What is TypeScript?')).not.toBeInTheDocument();
+    });
+
+    it('shows more suggested questions on desktop', () => {
+      render(
+        <ChatLayout 
+          suggestedQuestions={mockSuggestedQuestions}
+          onQuestionSelect={() => {}}
+          isMobile={false}
+        />
+      );
+      
+      // Should show 3 questions on desktop
+      expect(screen.getByText('What is React?')).toBeInTheDocument();
+      expect(screen.getByText('How do hooks work?')).toBeInTheDocument();
+      expect(screen.getByText('What is TypeScript?')).toBeInTheDocument();
+    });
+
+    it('applies responsive padding classes', () => {
+      const { container } = render(<ChatLayout />);
+      
+      // Check for responsive padding classes
+      expect(container.querySelector('.px-2.sm\\:px-4.md\\:px-6')).toBeInTheDocument();
+    });
   });
 }); 
