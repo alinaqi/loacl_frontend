@@ -1,10 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface FilePreview {
   name: string;
   size: string;
   type: string;
+}
+
+interface Message {
+  id: string;
+  text: string;
+  type: 'user' | 'bot';
+  timestamp: Date;
+  file?: FilePreview;
 }
 
 interface ChatWidgetProps {
@@ -44,7 +52,25 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<FilePreview | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      text: '👋 Hello! How can I help you today?',
+      type: 'bot',
+      timestamp: new Date(),
+    },
+  ]);
+  const [isTyping, setIsTyping] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -66,16 +92,48 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   const handleSend = () => {
-    // Here you would typically send both message and file to your backend
-    console.log('Sending message:', message);
-    if (selectedFile) {
-      console.log('With file:', selectedFile);
-    }
+    if (!message && !selectedFile) return;
+
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: message,
+      type: 'user',
+      timestamp: new Date(),
+      file: selectedFile,
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    // Clear input
     setMessage('');
     setSelectedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+
+    // Simulate bot response
+    setIsTyping(true);
+    setTimeout(() => {
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: getBotResponse(message),
+        type: 'bot',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botMessage]);
+      setIsTyping(false);
+    }, 1000 + Math.random() * 1000); // Random delay between 1-2 seconds
+  };
+
+  const getBotResponse = (userMessage: string): string => {
+    const responses = [
+      "I understand. Could you tell me more about that?",
+      "That's interesting! How can I help you with this?",
+      "I see. Let me think about the best way to assist you.",
+      "Thanks for sharing. What would you like to know more about?",
+      "I'm here to help. Could you provide more details?",
+    ];
+    return responses[Math.floor(Math.random() * responses.length)];
   };
 
   const removeFile = () => {
@@ -88,6 +146,13 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setMessage((prev) => prev + emojiData.emoji);
     setShowEmojiPicker(false);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   const widgetStyles = {
@@ -138,12 +203,14 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
             }}
           >
             <h3 className="text-white font-semibold">LOACL Chat</h3>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-white hover:text-gray-200"
-            >
-              ✕
-            </button>
+            {!previewMode && (
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-white hover:text-gray-200"
+              >
+                ✕
+              </button>
+            )}
           </div>
           <div 
             className="bg-gray-50 p-4"
@@ -153,26 +220,53 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           >
             <div className="h-full flex flex-col">
               <div className="flex-1 overflow-y-auto mb-4">
-                <div 
-                  className="bg-white rounded-lg p-3 shadow mb-2"
-                  style={{
-                    backgroundColor: 'var(--message-bubble-color)',
-                  }}
-                >
-                  <p className="text-gray-600">
-                    👋 Hello! How can I help you today?
-                  </p>
-                </div>
-                <div 
-                  className="bg-white rounded-lg p-3 shadow mb-2 ml-auto max-w-[80%]"
-                  style={{
-                    backgroundColor: 'var(--user-message-color)',
-                  }}
-                >
-                  <p className="text-gray-600">
-                    This is an example user message
-                  </p>
-                </div>
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`mb-4 ${msg.type === 'user' ? 'ml-auto' : 'mr-auto'} max-w-[80%]`}
+                  >
+                    <div
+                      className="rounded-lg p-3 shadow"
+                      style={{
+                        backgroundColor: msg.type === 'user' 
+                          ? 'var(--user-message-color)' 
+                          : 'var(--message-bubble-color)',
+                      }}
+                    >
+                      <p className="text-gray-700 whitespace-pre-wrap break-words">
+                        {msg.text}
+                      </p>
+                      {msg.file && (
+                        <div className="mt-2 p-2 bg-white bg-opacity-50 rounded">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-gray-500">📎</span>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700 truncate">
+                                {msg.file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {msg.file.size}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      {msg.timestamp.toLocaleTimeString()}
+                    </div>
+                  </div>
+                ))}
+                {isTyping && (
+                  <div className="flex items-center space-x-2 text-gray-500">
+                    <div className="typing-indicator">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
               <div className="bg-white rounded-lg shadow p-2">
                 {selectedFile && (
@@ -180,7 +274,9 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                     <div className="flex items-center space-x-2">
                       <span className="text-gray-500">📎</span>
                       <div>
-                        <p className="text-sm font-medium text-gray-700 truncate">{selectedFile.name}</p>
+                        <p className="text-sm font-medium text-gray-700 truncate">
+                          {selectedFile.name}
+                        </p>
                         <p className="text-xs text-gray-500">{selectedFile.size}</p>
                       </div>
                     </div>
@@ -195,6 +291,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
                   className="w-full p-2 border border-gray-200 rounded resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   rows={3}
@@ -248,7 +345,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                   <button
                     onClick={handleSend}
                     disabled={!message && !selectedFile}
-                    className="px-4 py-2 rounded"
+                    className="px-4 py-2 rounded transition-colors"
                     style={{
                       backgroundColor: !message && !selectedFile ? '#D1D5DB' : 'var(--primary-color)',
                       color: !message && !selectedFile ? '#6B7280' : '#ffffff',
