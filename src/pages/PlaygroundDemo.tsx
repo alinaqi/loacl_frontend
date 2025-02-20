@@ -7,6 +7,10 @@ interface CustomizationOptions {
     secondary: string;
     textColor: string;
     backgroundColor: string;
+    fontFamily: string;
+    fontSize: string;
+    messageBubbleColor: string;
+    userMessageColor: string;
   };
   layout: {
     width: string;
@@ -28,6 +32,10 @@ export const PlaygroundDemo: React.FC = () => {
       secondary: '#1d4ed8',
       textColor: '#111827',
       backgroundColor: '#ffffff',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSize: '14px',
+      messageBubbleColor: '#f3f4f6',
+      userMessageColor: '#e0e7ff',
     },
     layout: {
       width: '100%',
@@ -41,6 +49,45 @@ export const PlaygroundDemo: React.FC = () => {
       showEmoji: true,
     },
   });
+
+  const [selectedPreset, setSelectedPreset] = useState('default');
+  const presets = {
+    default: {
+      name: 'Default',
+      theme: { ...options.theme },
+    },
+    dark: {
+      name: 'Dark Mode',
+      theme: {
+        ...options.theme,
+        backgroundColor: '#1f2937',
+        textColor: '#f3f4f6',
+        messageBubbleColor: '#374151',
+        userMessageColor: '#3730a3',
+      },
+    },
+    modern: {
+      name: 'Modern',
+      theme: {
+        ...options.theme,
+        primary: '#7c3aed',
+        secondary: '#6d28d9',
+        borderRadius: '16px',
+        fontFamily: 'Plus Jakarta Sans, sans-serif',
+      },
+    },
+  };
+
+  const handlePresetChange = (preset: string) => {
+    setSelectedPreset(preset);
+    setOptions(prev => ({
+      ...prev,
+      theme: {
+        ...prev.theme,
+        ...presets[preset as keyof typeof presets].theme,
+      },
+    }));
+  };
 
   const handleOptionChange = (
     category: keyof CustomizationOptions,
@@ -66,23 +113,61 @@ export const PlaygroundDemo: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Customization Panel */}
           <div className="lg:col-span-1 space-y-6 bg-white p-6 rounded-lg shadow">
+            {/* Presets */}
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Presets</h2>
+              <select
+                value={selectedPreset}
+                onChange={(e) => handlePresetChange(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                {Object.entries(presets).map(([key, preset]) => (
+                  <option key={key} value={key}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Theme */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Theme</h2>
               {Object.entries(options.theme).map(([key, value]) => (
                 <div key={key} className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                    {key.split(/(?=[A-Z])/).join(' ')}
                   </label>
-                  <input
-                    type="color"
-                    value={value}
-                    onChange={(e) => handleOptionChange('theme', key, e.target.value)}
-                    className="w-full h-10 rounded-md"
-                  />
+                  {key.toLowerCase().includes('color') ? (
+                    <input
+                      type="color"
+                      value={value}
+                      onChange={(e) => handleOptionChange('theme', key, e.target.value)}
+                      className="w-full h-10 rounded-md"
+                    />
+                  ) : key === 'fontFamily' ? (
+                    <select
+                      value={value}
+                      onChange={(e) => handleOptionChange('theme', key, e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="Inter, system-ui, sans-serif">Inter</option>
+                      <option value="Plus Jakarta Sans, sans-serif">Plus Jakarta Sans</option>
+                      <option value="Roboto, sans-serif">Roboto</option>
+                      <option value="Poppins, sans-serif">Poppins</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={value}
+                      onChange={(e) => handleOptionChange('theme', key, e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md"
+                    />
+                  )}
                 </div>
               ))}
             </div>
 
+            {/* Layout */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Layout</h2>
               {Object.entries(options.layout).map(([key, value]) => (
@@ -111,6 +196,7 @@ export const PlaygroundDemo: React.FC = () => {
               ))}
             </div>
 
+            {/* Features */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Features</h2>
               {Object.entries(options.features).map(([key, value]) => (
@@ -132,7 +218,19 @@ export const PlaygroundDemo: React.FC = () => {
 
           {/* Preview Area */}
           <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">Preview</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Preview</h2>
+              <button
+                onClick={() => {
+                  const config = JSON.stringify(options, null, 2);
+                  navigator.clipboard.writeText(config);
+                  alert('Configuration copied to clipboard!');
+                }}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium text-gray-700"
+              >
+                Copy Config
+              </button>
+            </div>
             <div className="relative w-full h-[500px] border-2 border-dashed border-gray-200 rounded-lg overflow-hidden">
               <ChatWidget
                 customStyles={{
@@ -140,6 +238,10 @@ export const PlaygroundDemo: React.FC = () => {
                   '--secondary-color': options.theme.secondary,
                   '--text-color': options.theme.textColor,
                   '--bg-color': options.theme.backgroundColor,
+                  '--font-family': options.theme.fontFamily,
+                  '--font-size': options.theme.fontSize,
+                  '--message-bubble-color': options.theme.messageBubbleColor,
+                  '--user-message-color': options.theme.userMessageColor,
                   '--widget-width': options.layout.width,
                   '--widget-height': options.layout.height,
                   '--border-radius': options.layout.borderRadius,

@@ -16,6 +16,10 @@ interface ChatWidgetProps {
     '--widget-width'?: string;
     '--widget-height'?: string;
     '--border-radius'?: string;
+    '--font-family'?: string;
+    '--font-size'?: string;
+    '--message-bubble-color'?: string;
+    '--user-message-color'?: string;
   };
   position?: 'left' | 'right';
   features?: {
@@ -94,6 +98,10 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     '--widget-width': '400px',
     '--widget-height': '600px',
     '--border-radius': '12px',
+    '--font-family': 'Inter, system-ui, sans-serif',
+    '--font-size': '14px',
+    '--message-bubble-color': '#f3f4f6',
+    '--user-message-color': '#e0e7ff',
     ...customStyles,
   };
 
@@ -119,6 +127,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
             borderRadius: 'var(--border-radius)',
             backgroundColor: 'var(--bg-color)',
             color: 'var(--text-color)',
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--font-size)',
           }}
         >
           <div 
@@ -143,9 +153,24 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           >
             <div className="h-full flex flex-col">
               <div className="flex-1 overflow-y-auto mb-4">
-                <div className="bg-white rounded-lg p-3 shadow mb-2">
+                <div 
+                  className="bg-white rounded-lg p-3 shadow mb-2"
+                  style={{
+                    backgroundColor: 'var(--message-bubble-color)',
+                  }}
+                >
                   <p className="text-gray-600">
                     👋 Hello! How can I help you today?
+                  </p>
+                </div>
+                <div 
+                  className="bg-white rounded-lg p-3 shadow mb-2 ml-auto max-w-[80%]"
+                  style={{
+                    backgroundColor: 'var(--user-message-color)',
+                  }}
+                >
+                  <p className="text-gray-600">
+                    This is an example user message
                   </p>
                 </div>
               </div>
