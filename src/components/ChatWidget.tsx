@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface FilePreview {
   name: string;
@@ -38,6 +39,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   const [isOpen, setIsOpen] = useState(previewMode);
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<FilePreview | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,6 +79,11 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setMessage((prev) => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
   };
 
   const widgetStyles = {
@@ -167,41 +174,52 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                   className="w-full p-2 border border-gray-200 rounded resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   rows={3}
                 />
-                <div className="flex justify-between items-center mt-2">
-                  {features.showFileUpload && (
-                    <>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        accept="image/*,.pdf,.doc,.docx,.txt"
-                      />
+                <div className="flex items-center mt-2">
+                  <div className="flex space-x-2">
+                    {features.showFileUpload && (
+                      <>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          accept="image/*,.pdf,.doc,.docx,.txt"
+                        />
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="text-gray-500 hover:text-gray-700"
+                          title="Attach file"
+                        >
+                          📎
+                        </button>
+                      </>
+                    )}
+                    {features.showVoiceInput && (
                       <button
-                        onClick={() => fileInputRef.current?.click()}
                         className="text-gray-500 hover:text-gray-700"
-                        title="Attach file"
+                        title="Voice input"
                       >
-                        📎
+                        🎤
                       </button>
-                    </>
-                  )}
-                  {features.showVoiceInput && (
-                    <button
-                      className="text-gray-500 hover:text-gray-700"
-                      title="Voice input"
-                    >
-                      🎤
-                    </button>
-                  )}
-                  {features.showEmoji && (
-                    <button
-                      className="text-gray-500 hover:text-gray-700"
-                      title="Add emoji"
-                    >
-                      😊
-                    </button>
-                  )}
+                    )}
+                    {features.showEmoji && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className="text-gray-500 hover:text-gray-700"
+                          title="Add emoji"
+                        >
+                          😊
+                        </button>
+                        {showEmojiPicker && (
+                          <div className="absolute bottom-full left-0 mb-2">
+                            <EmojiPicker onEmojiClick={handleEmojiClick} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-grow"></div>
                   <button
                     onClick={handleSend}
                     disabled={!message && !selectedFile}
