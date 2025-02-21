@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { NewChatbotInput, ChatbotDesignSettings } from '../../types/chatbot';
+import { NewChatbotInput, ChatbotDesignSettings, CreateChatbotRequest } from '../../types/chatbot';
+import { chatbotApi } from '../../services/chatbotApi';
 
 interface AddChatbotModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 const defaultDesignSettings: ChatbotDesignSettings = {
@@ -32,9 +34,16 @@ const defaultFeatures = {
   showFollowUpSuggestions: true,
 };
 
+const availableModels = [
+  { id: 'gpt-4-turbo-preview', name: 'GPT-4 Turbo' },
+  { id: 'gpt-4', name: 'GPT-4' },
+  { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+];
+
 export const AddChatbotModal: React.FC<AddChatbotModalProps> = ({
   isOpen,
   onClose,
+  onSuccess,
 }) => {
   const [step, setStep] = useState(1);
   const [input, setInput] = useState<NewChatbotInput>({
@@ -46,9 +55,12 @@ export const AddChatbotModal: React.FC<AddChatbotModalProps> = ({
   });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [description, setDescription] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [selectedModel, setSelectedModel] = useState(availableModels[0].id);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setInput((prev) => ({ ...prev, [name]: value }));
@@ -99,9 +111,23 @@ export const AddChatbotModal: React.FC<AddChatbotModalProps> = ({
     setIsLoading(true);
 
     try {
-      // TODO: Implement actual API call
-      console.log('Creating chatbot:', input);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // First create the chatbot
+      const createData: CreateChatbotRequest = {
+        name: input.name,
+        description: description,
+        instructions: instructions,
+        model: selectedModel,
+        api_key: input.api_key,
+        assistant_id: input.assistant_id,
+        tools_enabled: input.features.showFileUpload ? ['code_interpreter'] : [],
+      };
+
+      const chatbot = await chatbotApi.createChatbot(createData);
+
+      // Then update its design settings
+      await chatbotApi.updateChatbotSettings(chatbot.id, input.design_settings);
+
+      onSuccess?.();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create chatbot');
@@ -165,6 +191,65 @@ export const AddChatbotModal: React.FC<AddChatbotModalProps> = ({
                     required
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="description"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                    rows={3}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="instructions"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Instructions
+                  </label>
+                  <textarea
+                    id="instructions"
+                    name="instructions"
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    required
+                    rows={4}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="model"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Model
+                  </label>
+                  <select
+                    id="model"
+                    name="model"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  >
+                    {availableModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
