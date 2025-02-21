@@ -7,6 +7,19 @@ interface PlaygroundConfig {
   name: string;
   description: string;
   uuid?: string;
+  theme?: {
+    primary_color: string;
+    secondary_color: string;
+    text_color: string;
+    background_color: string;
+  };
+  chat_bubble_text?: string;
+  initial_message?: string;
+  features?: {
+    showFileUpload: boolean;
+    showVoiceInput: boolean;
+    showEmoji: boolean;
+  };
 }
 
 interface AuthState {
@@ -20,6 +33,19 @@ export const ChatbotPlayground: React.FC = () => {
     assistantId: '',
     name: '',
     description: '',
+    theme: {
+      primary_color: '#2563eb',
+      secondary_color: '#1d4ed8',
+      text_color: '#111827',
+      background_color: '#ffffff'
+    },
+    chat_bubble_text: 'Chat with me!',
+    initial_message: 'Hello! How can I help you today!',
+    features: {
+      showFileUpload: true,
+      showVoiceInput: true,
+      showEmoji: true
+    }
   });
   const [isConfigured, setIsConfigured] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -182,13 +208,13 @@ export const ChatbotPlayground: React.FC = () => {
         },
         body: JSON.stringify({
           theme: {
-            primary_color: '#2563eb',
-            secondary_color: '#1d4ed8',
-            text_color: '#111827',
-            background_color: '#ffffff'
+            primary_color: config.theme?.primary_color,
+            secondary_color: config.theme?.secondary_color,
+            text_color: config.theme?.text_color,
+            background_color: config.theme?.background_color
           },
-          chat_bubble_text: "Chat with me!",
-          initial_message: "Hello! How can I help you today!"
+          chat_bubble_text: config.chat_bubble_text,
+          initial_message: config.initial_message
         }),
       });
 
@@ -324,29 +350,213 @@ export const ChatbotPlayground: React.FC = () => {
             </form>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-900">{config.name}</h2>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                >
-                  {isSaving ? 'Saving...' : 'Save Assistant'}
-                </button>
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Customization Panel */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-6">Customize Your Chatbot</h2>
+                <div className="space-y-6">
+                  {/* Theme Colors */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-4">Theme Colors</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Primary Color</label>
+                        <input
+                          type="color"
+                          value={config.theme?.primary_color || '#2563eb'}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              theme: {
+                                ...prev.theme!,
+                                primary_color: e.target.value
+                              }
+                            }));
+                          }}
+                          className="w-full h-10 rounded border border-gray-300"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Secondary Color</label>
+                        <input
+                          type="color"
+                          value={config.theme?.secondary_color || '#1d4ed8'}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              theme: {
+                                ...prev.theme!,
+                                secondary_color: e.target.value
+                              }
+                            }));
+                          }}
+                          className="w-full h-10 rounded border border-gray-300"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Text Color</label>
+                        <input
+                          type="color"
+                          value={config.theme?.text_color || '#111827'}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              theme: {
+                                ...prev.theme!,
+                                text_color: e.target.value
+                              }
+                            }));
+                          }}
+                          className="w-full h-10 rounded border border-gray-300"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Background Color</label>
+                        <input
+                          type="color"
+                          value={config.theme?.background_color || '#ffffff'}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              theme: {
+                                ...prev.theme!,
+                                background_color: e.target.value
+                              }
+                            }));
+                          }}
+                          className="w-full h-10 rounded border border-gray-300"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Messages */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-4">Messages</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Chat Bubble Text</label>
+                        <input
+                          type="text"
+                          value={config.chat_bubble_text || 'Chat with me!'}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              chat_bubble_text: e.target.value
+                            }));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Initial Message</label>
+                        <input
+                          type="text"
+                          value={config.initial_message || 'Hello! How can I help you today!'}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              initial_message: e.target.value
+                            }));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Features */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-4">Features</h3>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={config.features?.showFileUpload}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              features: {
+                                ...prev.features!,
+                                showFileUpload: e.target.checked
+                              }
+                            }));
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-600">File Upload</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={config.features?.showVoiceInput}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              features: {
+                                ...prev.features!,
+                                showVoiceInput: e.target.checked
+                              }
+                            }));
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-600">Voice Input</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={config.features?.showEmoji}
+                          onChange={(e) => {
+                            setConfig(prev => ({
+                              ...prev,
+                              features: {
+                                ...prev.features!,
+                                showEmoji: e.target.checked
+                              }
+                            }));
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-600">Emoji Picker</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
-              <div className="h-[600px]">
-                <ChatWidget
-                  customStyles={{
-                    '--widget-width': '100%',
-                    '--widget-height': '100%',
-                    '--border-radius': '0.5rem',
-                  }}
-                  openaiKey={config.openaiKey}
-                  assistantId={config.uuid || config.assistantId}
-                  accessToken={auth.accessToken}
-                />
+
+              {/* Chat Preview */}
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Preview</h2>
+                </div>
+                <div className="h-[800px]">
+                  <ChatWidget
+                    customStyles={{
+                      '--widget-width': '100%',
+                      '--widget-height': '100%',
+                      '--border-radius': '0.5rem',
+                      '--primary-color': config.theme?.primary_color,
+                      '--secondary-color': config.theme?.secondary_color,
+                      '--text-color': config.theme?.text_color,
+                      '--bg-color': config.theme?.background_color,
+                    }}
+                    openaiKey={config.openaiKey}
+                    assistantId={config.uuid || config.assistantId}
+                    accessToken={auth.accessToken}
+                    previewMode={true}
+                    features={config.features}
+                  />
+                </div>
               </div>
             </div>
           </div>
