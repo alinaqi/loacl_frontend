@@ -10,6 +10,7 @@ import { AllFeaturesDemo } from './pages/AllFeaturesDemo';
 import { SignIn } from './components/auth/SignIn';
 import { SignUp } from './components/auth/SignUp';
 import { Dashboard } from './pages/Dashboard';
+import { ChatbotPlayground } from './pages/ChatbotPlayground';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -128,6 +129,7 @@ function App() {
               <Route path="/ecommerce" element={<EcommerceDemo />} />
               <Route path="/support" element={<SupportDemo />} />
               <Route path="/playground" element={<PlaygroundDemo />} />
+              <Route path="/chatbot-playground" element={<ChatbotPlayground />} />
               <Route path="/features" element={<AllFeaturesDemo />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />

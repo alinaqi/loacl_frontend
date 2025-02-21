@@ -36,6 +36,9 @@ interface ChatWidgetProps {
     showEmoji?: boolean;
   };
   previewMode?: boolean;
+  openaiKey?: string;
+  assistantId?: string;
+  accessToken?: string;
 }
 
 export const ChatWidget: React.FC<ChatWidgetProps> = ({
@@ -47,6 +50,9 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     showEmoji: true,
   },
   previewMode = false,
+  openaiKey,
+  assistantId,
+  accessToken,
 }) => {
   const [isOpen, setIsOpen] = useState(previewMode);
   const [message, setMessage] = useState('');
@@ -61,6 +67,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -91,8 +98,12 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!message && !selectedFile) return;
+    if (!openaiKey || !assistantId || !accessToken) {
+      setError('OpenAI API key, Assistant ID, and access token are required');
+      return;
+    }
 
     // Add user message
     const userMessage: Message = {
@@ -100,7 +111,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
       text: message,
       type: 'user',
       timestamp: new Date(),
-      file: selectedFile,
+      file: selectedFile || undefined,
     };
     setMessages((prev) => [...prev, userMessage]);
 
@@ -111,29 +122,149 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
       fileInputRef.current.value = '';
     }
 
-    // Simulate bot response
+    // Send message using our backend API
     setIsTyping(true);
-    setTimeout(() => {
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: getBotResponse(message),
-        type: 'bot',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, botMessage]);
-      setIsTyping(false);
-    }, 1000 + Math.random() * 1000); // Random delay between 1-2 seconds
-  };
+    setError(null);
 
-  const getBotResponse = (userMessage: string): string => {
-    const responses = [
-      "I understand. Could you tell me more about that?",
-      "That's interesting! How can I help you with this?",
-      "I see. Let me think about the best way to assist you.",
-      "Thanks for sharing. What would you like to know more about?",
-      "I'm here to help. Could you provide more details?",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
+    try {
+      // Create a thread if we don't have one
+      const storedThreadId = localStorage.getItem(`thread_${assistantId}`);
+      let threadId = storedThreadId || '';
+      
+      if (!threadId) {
+        const threadResponse = await fetch(`http://localhost:8000/api/v1/assistant-communication/threads?assistant_id=${assistantId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            api_key: openaiKey,
+            messages: [{
+              role: "user",
+              content: message
+            }]
+          }),
+        });
+
+        if (!threadResponse.ok) {
+          const errorData = await threadResponse.json();
+          console.error('Thread creation error:', errorData);
+          throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 
+            (Array.isArray(errorData.detail) ? errorData.detail[0].msg : 'Failed to create thread'));
+        }
+
+        const threadData = await threadResponse.json();
+        threadId = threadData.id;
+        localStorage.setItem(`thread_${assistantId}`, threadId);
+      } else {
+        // Add message to existing thread
+        const messageResponse = await fetch(`http://localhost:8000/api/v1/assistant-communication/threads/${threadId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            content: message,
+            role: "user",
+            api_key: openaiKey
+          }),
+        });
+
+        if (!messageResponse.ok) {
+          const errorData = await messageResponse.json();
+          console.error('Message creation error:', errorData);
+          throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 
+            (Array.isArray(errorData.detail) ? errorData.detail[0].msg : 'Failed to add message'));
+        }
+      }
+
+      // Create and run the assistant
+      const runResponse = await fetch(`http://localhost:8000/api/v1/assistant-communication/threads/${threadId}/runs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          assistant_id: assistantId,
+          api_key: openaiKey
+        }),
+      });
+
+      if (!runResponse.ok) {
+        const errorData = await runResponse.json();
+        console.error('Run creation error:', errorData);
+        throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 
+          (Array.isArray(errorData.detail) ? errorData.detail[0].msg : 'Failed to start assistant run'));
+      }
+
+      const runData = await runResponse.json();
+
+      // Poll for completion
+      let runStatus = runData.status;
+      while (runStatus === 'queued' || runStatus === 'in_progress') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const statusResponse = await fetch(
+          `http://localhost:8000/api/v1/assistant-communication/threads/${threadId}/runs/${runData.id}?assistant_id=${assistantId}&api_key=${openaiKey}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (!statusResponse.ok) {
+          const errorData = await statusResponse.json();
+          console.error('Status check error:', errorData);
+          throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 
+            (Array.isArray(errorData.detail) ? errorData.detail[0].msg : 'Failed to get run status'));
+        }
+
+        const statusData = await statusResponse.json();
+        runStatus = statusData.status;
+      }
+
+      if (runStatus === 'completed') {
+        // Get the messages
+        const messagesResponse = await fetch(
+          `http://localhost:8000/api/v1/assistant-communication/threads/${threadId}/messages?assistant_id=${assistantId}&api_key=${openaiKey}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (!messagesResponse.ok) {
+          const errorData = await messagesResponse.json();
+          console.error('Messages retrieval error:', errorData);
+          throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 
+            (Array.isArray(errorData.detail) ? errorData.detail[0].msg : 'Failed to get messages'));
+        }
+
+        const messagesData = await messagesResponse.json();
+        const lastMessage = messagesData[0]; // Most recent message first
+
+        const botMessage: Message = {
+          id: lastMessage.id,
+          text: lastMessage.content[0].text.value,
+          type: 'bot',
+          timestamp: new Date(lastMessage.created_at),
+        };
+        
+        setMessages((prev) => [...prev, botMessage]);
+      } else {
+        throw new Error(`Run failed with status: ${runStatus}`);
+      }
+    } catch (err) {
+      console.error('Chat error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to get response from assistant');
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const removeFile = () => {
@@ -264,6 +395,11 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                       <span></span>
                       <span></span>
                     </div>
+                  </div>
+                )}
+                {error && (
+                  <div className="text-red-600 text-sm bg-red-50 p-3 rounded mb-4">
+                    {error}
                   </div>
                 )}
                 <div ref={messagesEndRef} />

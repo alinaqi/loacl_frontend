@@ -14,6 +14,7 @@ export const Navigation = () => {
     { path: '/support', label: 'Support Demo' },
     { path: '/features', label: 'Features' },
     { path: '/playground', label: 'Playground' },
+    { path: '/chatbot-playground', label: 'Chatbot Playground' },
   ];
 
   const handleLogout = () => {

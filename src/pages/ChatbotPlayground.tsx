@@ -6,6 +6,7 @@ interface PlaygroundConfig {
   assistantId: string;
   name: string;
   description: string;
+  uuid?: string;
 }
 
 interface AuthState {
@@ -90,86 +91,8 @@ export const ChatbotPlayground: React.FC = () => {
     }
 
     try {
-      // First validate the assistant exists
-      const validateResponse = await fetch(`http://localhost:8000/api/v1/assistant-communication/validate-assistant`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.accessToken}`,
-        },
-        body: JSON.stringify({
-          assistant_id: config.assistantId,
-          api_key: config.openaiKey
-        }),
-      });
-
-      if (!validateResponse.ok) {
-        const errorData = await validateResponse.json();
-        console.error('API Error:', errorData);
-        
-        // Handle array of validation errors
-        if (Array.isArray(errorData.detail)) {
-          interface ValidationError {
-            msg: string;
-            loc: string[];
-            type: string;
-          }
-          
-          const errorMessages = errorData.detail
-            .map((err: ValidationError) => `${err.msg} at ${err.loc.join('.')}`)
-            .join(', ');
-          throw new Error(errorMessages);
-        }
-        
-        // Handle string error
-        if (typeof errorData.detail === 'string') {
-          throw new Error(errorData.detail);
-        }
-        
-        throw new Error('Failed to validate assistant');
-      }
-
-      // If validation succeeds, create a thread
-      const response = await fetch(`http://localhost:8000/api/v1/assistant-communication/threads`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.accessToken}`,
-        },
-        body: JSON.stringify({
-          api_key: config.openaiKey,
-          assistant_id: config.assistantId,
-          messages: [{
-            role: "user",
-            content: "Hello!",
-            file_ids: []
-          }]
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 'Failed to create thread');
-      }
-
-      setIsConfigured(true);
-    } catch (error) {
-      console.error('Full error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to validate configuration');
-    }
-  };
-
-  const handleSave = async () => {
-    if (!auth.isAuthenticated) {
-      setError('Not authenticated');
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/assistants', {
+      // First create the assistant in our database
+      const createResponse = await fetch('http://localhost:8000/api/v1/assistants', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -177,7 +100,7 @@ export const ChatbotPlayground: React.FC = () => {
         },
         body: JSON.stringify({
           name: config.name,
-          description: config.description,
+          description: config.description || `Assistant ${config.name}`,
           instructions: "You are a helpful assistant",
           model: "gpt-4-turbo-preview",
           api_key: config.openaiKey,
@@ -186,13 +109,97 @@ export const ChatbotPlayground: React.FC = () => {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to save assistant');
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        console.error('Assistant Creation Error:', errorData);
+        
+        if (Array.isArray(errorData.detail)) {
+          const errorMessages = errorData.detail
+            .map((err: { msg: string; loc: string[] }) => `${err.msg} at ${err.loc.join('.')}`)
+            .join(', ');
+          throw new Error(errorMessages);
+        }
+        
+        throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 'Failed to create assistant');
       }
 
-      alert('Assistant saved successfully!');
+      // Get the created assistant's UUID
+      const assistantData = await createResponse.json();
+      const assistantUuid = assistantData.id;
+
+      // Now create a thread using the UUID
+      const threadResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantUuid}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({
+          messages: [{
+            role: "user",
+            content: "Hello!"
+          }]
+        }),
+      });
+
+      if (!threadResponse.ok) {
+        const errorData = await threadResponse.json();
+        console.error('Thread Creation Error:', errorData);
+        if (errorData.error) {
+          throw new Error(errorData.error.message);
+        }
+        throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 'Failed to create thread');
+      }
+
+      const threadData = await threadResponse.json();
+      console.log('Thread created:', threadData);
+
+      // Update config with the UUID for future API calls
+      setConfig(prev => ({ ...prev, uuid: assistantUuid }));
+      setIsConfigured(true);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to save assistant');
+      console.error('Full error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to configure assistant');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!auth.isAuthenticated || !config.uuid) {
+      setError('Not authenticated or assistant not properly configured');
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      // Update assistant settings using the UUID
+      const response = await fetch(`http://localhost:8000/api/v1/assistants/${config.uuid}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${auth.accessToken}`,
+        },
+        body: JSON.stringify({
+          theme: {
+            primary_color: '#2563eb',
+            secondary_color: '#1d4ed8',
+            text_color: '#111827',
+            background_color: '#ffffff'
+          },
+          chat_bubble_text: "Chat with me!",
+          initial_message: "Hello! How can I help you today!"
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 'Failed to update assistant settings');
+      }
+
+      alert('Assistant settings saved successfully!');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to save assistant settings');
     } finally {
       setIsSaving(false);
     }
@@ -337,7 +344,7 @@ export const ChatbotPlayground: React.FC = () => {
                     '--border-radius': '0.5rem',
                   }}
                   openaiKey={config.openaiKey}
-                  assistantId={config.assistantId}
+                  assistantId={config.uuid || config.assistantId}
                   accessToken={auth.accessToken}
                 />
               </div>
