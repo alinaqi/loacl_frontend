@@ -2,6 +2,16 @@ import api from './api';
 import { Chatbot, CreateChatbotRequest, ChatbotDesignSettings } from '../types/chatbot';
 
 export const chatbotApi = {
+  getChatbots: async (): Promise<Chatbot[]> => {
+    try {
+      const response = await api.get<Chatbot[]>('/assistants');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting chatbots:', error);
+      throw error;
+    }
+  },
+
   createChatbot: async (data: CreateChatbotRequest): Promise<Chatbot> => {
     try {
       const response = await api.post<Chatbot>('/assistants', data);

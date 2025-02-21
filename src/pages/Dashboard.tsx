@@ -1,15 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChatbotList } from '../components/dashboard/ChatbotList';
 import { ChatbotAnalytics } from '../components/dashboard/ChatbotAnalytics';
 import { AddChatbotModal } from '../components/dashboard/AddChatbotModal';
 import { Chatbot } from '../types/chatbot';
+import { chatbotApi } from '../services/chatbotApi';
 
 export const Dashboard: React.FC = () => {
   const [selectedChatbot, setSelectedChatbot] = useState<Chatbot | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [chatbots, setChatbots] = useState<Chatbot[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Replace with actual API call
-  const [chatbots] = useState<Chatbot[]>([]);
+  const fetchChatbots = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await chatbotApi.getChatbots();
+      setChatbots(data);
+      if (data.length > 0 && !selectedChatbot) {
+        setSelectedChatbot(data[0]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch chatbots');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChatbots();
+  }, []);
+
+  const handleAddSuccess = () => {
+    fetchChatbots();
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -24,19 +49,35 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
 
+        {error && (
+          <div className="mb-8 bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Chatbot List */}
           <div className="lg:col-span-1">
-            <ChatbotList
-              chatbots={chatbots}
-              selectedChatbot={selectedChatbot}
-              onSelectChatbot={setSelectedChatbot}
-            />
+            {isLoading ? (
+              <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+                Loading chatbots...
+              </div>
+            ) : (
+              <ChatbotList
+                chatbots={chatbots}
+                selectedChatbot={selectedChatbot}
+                onSelectChatbot={setSelectedChatbot}
+              />
+            )}
           </div>
 
           {/* Analytics Panel */}
           <div className="lg:col-span-2">
-            {selectedChatbot ? (
+            {isLoading ? (
+              <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+                Loading analytics...
+              </div>
+            ) : selectedChatbot ? (
               <ChatbotAnalytics chatbot={selectedChatbot} />
             ) : (
               <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
@@ -51,6 +92,7 @@ export const Dashboard: React.FC = () => {
       <AddChatbotModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleAddSuccess}
       />
     </div>
   );

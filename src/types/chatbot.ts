@@ -41,9 +41,6 @@ export interface Chatbot {
 
 export interface CreateChatbotRequest {
   name: string;
-  description: string;
-  instructions: string;
-  model: string;
   api_key: string;
   assistant_id: string;
   tools_enabled: string[];
