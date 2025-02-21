@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navigation } from './components/Navigation';
 import { Footer } from './components/Footer';
 import { BasicDemo } from './pages/BasicDemo';
@@ -7,6 +7,20 @@ import { EcommerceDemo } from './pages/EcommerceDemo';
 import { SupportDemo } from './pages/SupportDemo';
 import { PlaygroundDemo } from './pages/PlaygroundDemo';
 import { AllFeaturesDemo } from './pages/AllFeaturesDemo';
+import { SignIn } from './components/auth/SignIn';
+import { SignUp } from './components/auth/SignUp';
+import { Dashboard } from './pages/Dashboard';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 const Home = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -103,22 +117,34 @@ const Home = () => (
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Navigation />
-        <div className="flex-grow">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/basic" element={<BasicDemo />} />
-            <Route path="/ecommerce" element={<EcommerceDemo />} />
-            <Route path="/support" element={<SupportDemo />} />
-            <Route path="/playground" element={<PlaygroundDemo />} />
-            <Route path="/features" element={<AllFeaturesDemo />} />
-          </Routes>
+    <AuthProvider>
+      <BrowserRouter>
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+          <Navigation />
+          <div className="flex-grow">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/basic" element={<BasicDemo />} />
+              <Route path="/ecommerce" element={<EcommerceDemo />} />
+              <Route path="/support" element={<SupportDemo />} />
+              <Route path="/playground" element={<PlaygroundDemo />} />
+              <Route path="/features" element={<AllFeaturesDemo />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </div>
+          <Footer />
         </div>
-        <Footer />
-      </div>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
