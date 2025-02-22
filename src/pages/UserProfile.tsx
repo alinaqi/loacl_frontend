@@ -41,6 +41,14 @@ export const UserProfile = () => {
 
         const data = await response.json();
         setApiKeys(data);
+
+        // If we don't have an API key in localStorage, use the first active one
+        if (!localStorage.getItem('api_key')) {
+          const firstActiveKey = data.find((key: ApiKey) => key.is_active);
+          if (firstActiveKey) {
+            localStorage.setItem('api_key', firstActiveKey.key);
+          }
+        }
       } catch (error) {
         setApiKeyError('Failed to load API keys');
         console.error('Error fetching API keys:', error);
@@ -107,6 +115,9 @@ export const UserProfile = () => {
 
       const newKey = await response.json();
       setApiKeys(prev => [...prev, newKey]);
+      
+      // Store the API key in localStorage
+      localStorage.setItem('api_key', newKey.key);
     } catch (error) {
       setApiKeyError('Failed to generate API key');
       console.error('Error generating API key:', error);
@@ -126,6 +137,14 @@ export const UserProfile = () => {
 
       if (!response.ok) {
         throw new Error('Failed to revoke API key');
+      }
+
+      // Find the key that was revoked
+      const revokedKey = apiKeys.find(key => key.id === keyId);
+      
+      // If the revoked key is the current one in localStorage, remove it
+      if (revokedKey && localStorage.getItem('api_key') === revokedKey.key) {
+        localStorage.removeItem('api_key');
       }
 
       setApiKeys(prev => prev.filter(key => key.id !== keyId));

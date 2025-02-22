@@ -11,6 +11,7 @@ import { SignUp } from './components/auth/SignUp';
 import { Dashboard } from './pages/Dashboard';
 import { ChatbotPlayground } from './pages/ChatbotPlayground';
 import { UserProfile } from './pages/UserProfile';
+import { ChatbotTest } from './pages/ChatbotTest';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -145,6 +146,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <UserProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chatbot/:id/test"
+                element={
+                  <ProtectedRoute>
+                    <ChatbotTest />
                   </ProtectedRoute>
                 }
               />

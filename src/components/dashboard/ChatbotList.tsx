@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Chatbot } from '../../types/chatbot';
 
 interface ChatbotListProps {
@@ -12,6 +13,8 @@ export const ChatbotList: React.FC<ChatbotListProps> = ({
   selectedChatbot,
   onSelectChatbot,
 }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-4 border-b border-gray-200">
@@ -72,6 +75,15 @@ export const ChatbotList: React.FC<ChatbotListProps> = ({
                         d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                       />
                     </svg>
+                  </button>
+                  <button
+                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium px-3 py-1 rounded-md hover:bg-indigo-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/chatbot/${chatbot.id}/test`);
+                    }}
+                  >
+                    Test
                   </button>
                 </div>
               </div>

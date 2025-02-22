@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { v4 as uuidv4 } from 'uuid';
 
 interface FilePreview {
   name: string;
@@ -14,6 +15,8 @@ interface Message {
   timestamp: Date;
   file?: FilePreview;
   isTyping?: boolean;
+  isUser: boolean;
+  severity?: 'info' | 'warning' | 'error';
 }
 
 interface ChatWidgetProps {
@@ -37,9 +40,7 @@ interface ChatWidgetProps {
     showEmoji?: boolean;
   };
   previewMode?: boolean;
-  openaiKey?: string;
   assistantId?: string;
-  accessToken?: string | null;
 }
 
 export const ChatWidget: React.FC<ChatWidgetProps> = ({
@@ -51,27 +52,23 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     showEmoji: true,
   },
   previewMode = false,
-  openaiKey = import.meta.env.VITE_OPENAI_API_KEY,
   assistantId = import.meta.env.VITE_ASSISTANT_ID,
-  accessToken,
 }) => {
   const [isOpen, setIsOpen] = useState(previewMode);
   const [message, setMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<FilePreview | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: '👋 Hello! How can I help you today?',
-      type: 'bot',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([{
+    id: '1',
+    text: '👋 Hello! How can I help you today?',
+    type: 'bot',
+    timestamp: new Date(),
+    isUser: false,
+    isTyping: false
+  }]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [threadId, setThreadId] = useState<string>('');
-  const [isCreatingThread, setIsCreatingThread] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -100,188 +97,208 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleSend = async () => {
-    if (!message && !selectedFile) return;
-    if (!openaiKey || !assistantId || !accessToken) {
-      setError('OpenAI API key, Assistant ID, and access token are required');
+  const handleSend = async (message: string) => {
+    if (!assistantId) {
+      setError('Assistant ID is required');
       return;
     }
 
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: message,
-      type: 'user',
-      timestamp: new Date(),
-      file: selectedFile || undefined,
-    };
-    setMessages((prev) => [...prev, userMessage]);
-
-    // Clear input
-    setMessage('');
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    const apiKey = localStorage.getItem('api_key');
+    if (!apiKey) {
+      setError('API key is required');
+      return;
     }
 
-    // Send message using our backend API
     setError(null);
+    const currentMessage = message;
+    setMessage(''); // Clear the input immediately after sending
+
+    // Add user message immediately
+    const userMessageId = uuidv4();
+    const userMessage: Message = {
+      id: userMessageId,
+      text: currentMessage,
+      type: 'user',
+      timestamp: new Date(),
+      isUser: true,
+      isTyping: false
+    };
+    setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Create a thread if we don't have one
+      // Create a typing indicator message
+      const typingMessageId = uuidv4();
+      const typingMessage: Message = {
+        id: typingMessageId,
+        text: '',
+        type: 'bot',
+        timestamp: new Date(),
+        isUser: false,
+        isTyping: true
+      };
+      setMessages(prev => [...prev, typingMessage]);
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+        'Accept': 'text/event-stream',
+      };
+
+      let response;
+      const threadId = localStorage.getItem('chat_thread_id');
+
       if (!threadId) {
-        setIsCreatingThread(true);
-        const threadResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantId}`, {
+        // Create new thread with initial message
+        const messageData = {
+          role: "user",
+          content: currentMessage
+        };
+        
+        response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantId}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'X-API-Key': openaiKey
-          },
+          headers,
           body: JSON.stringify({
+            messages: [messageData]
+          })
+        });
+      } else {
+        // Continue existing thread
+        response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/assistant-streaming/threads/${threadId}/runs/stream`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            assistant_id: assistantId,
+            instructions: null,
+            tools: [],
             messages: [{
               role: "user",
-              content: userMessage.text
+              content: currentMessage
             }]
           })
         });
-
-        if (!threadResponse.ok) {
-          throw new Error(`Failed to create thread: ${threadResponse.status}`);
-        }
-
-        const threadData = await threadResponse.json();
-        setThreadId(threadData.id);
-        setIsCreatingThread(false);
-
-        // Now send the message to the new thread
-        const runResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/${threadData.id}/runs/stream`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'X-API-Key': openaiKey,
-            'Accept': 'text/event-stream',
-          },
-          body: JSON.stringify({
-            assistant_id: assistantId,
-            instructions: null,
-            tools: [],
-            messages: [{
-              role: "user",
-              content: userMessage.text
-            }]
-          }),
-        });
-
-        if (!runResponse.ok) {
-          throw new Error(`Failed to create run: ${runResponse.status}`);
-        }
-
-        await handleRunResponse(runResponse);
-      } else {
-        // For existing thread, send message via run
-        const runResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/${threadId}/runs/stream`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'X-API-Key': openaiKey,
-            'Accept': 'text/event-stream',
-          },
-          body: JSON.stringify({
-            assistant_id: assistantId,
-            instructions: null,
-            tools: [],
-            messages: [{
-              role: "user",
-              content: userMessage.text
-            }]
-          }),
-        });
-
-        if (!runResponse.ok) {
-          throw new Error(`Failed to create run: ${runResponse.status}`);
-        }
-
-        await handleRunResponse(runResponse);
       }
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      // Handle streaming response
+      await handleRunResponse(response, typingMessageId);
     } catch (err) {
-      console.error('Chat error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to get response from assistant');
+      console.error('Error in chat:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while processing your message');
+      // Clean up any typing indicators
+      setMessages(prev => prev.filter(msg => !msg.isTyping));
     }
   };
 
   // Helper function to handle run response streaming
-  const handleRunResponse = async (response: Response) => {
+  const handleRunResponse = async (response: Response, typingMessageId: string) => {
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
-    let currentMessage = '';
     let buffer = '';
-    const messageId = Date.now().toString();
+    const messageMap = new Map(); // Track messages by ID
 
-    // Add initial bot message with typing indicator
-    setMessages((prev) => [...prev, {
-      id: messageId,
-      text: '',
-      type: 'bot',
-      timestamp: new Date(),
-      isTyping: true
-    }]);
+    if (!reader) {
+      setError('Failed to read response stream');
+      setMessages((prev) => prev.filter(msg => msg.id !== typingMessageId));
+      return;
+    }
 
-    if (reader) {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          // When stream is complete, remove typing indicator if it still exists
+          setMessages((prev) => prev.filter(msg => msg.id !== typingMessageId));
+          break;
+        }
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-          for (const line of lines) {
-            if (line.trim() === '') continue;
+        let eventType = '';
 
-            if (line.startsWith('event: ')) {
-              const eventType = line.slice(7);
-              console.log('Event type:', eventType);
-              continue;
-            }
+        for (const line of lines) {
+          if (line.trim() === '') continue;
 
-            if (line.startsWith('data: ')) {
-              try {
-                const eventData = JSON.parse(line.slice(6));
-                console.log('Event data:', eventData);
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+            continue;
+          }
 
-                if (eventData.delta?.content) {
-                  const content = eventData.delta.content;
-                  for (const part of content) {
-                    if (part.type === 'text') {
-                      currentMessage += part.text.value;
-                      // Update the existing message and remove typing indicator
-                      setMessages((prev) => prev.map(msg => 
-                        msg.id === messageId
-                          ? { ...msg, text: currentMessage, isTyping: false }
-                          : msg
-                      ));
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.slice(6));
+              console.log('Event type:', eventType, 'Event data:', eventData);
+
+              switch (eventType) {
+                case 'thread.message.created':
+                  if (eventData.role === 'assistant' && !messageMap.has(eventData.id)) {
+                    const messageContent = eventData.content?.[0]?.text?.value || '';
+                    messageMap.set(eventData.id, messageContent);
+                    
+                    // Create new message only if it doesn't exist
+                    setMessages((prev) => {
+                      if (prev.some(msg => msg.id === eventData.id)) return prev;
+                      
+                      const newMessage: Message = {
+                        id: eventData.id,
+                        text: messageContent,
+                        type: 'bot',
+                        timestamp: new Date(),
+                        isUser: false,
+                        isTyping: false
+                      };
+                      return [...prev.filter(msg => msg.id !== typingMessageId), newMessage];
+                    });
+                  }
+                  break;
+
+                case 'thread.message.delta':
+                  if (eventData.delta?.content && eventData.id) {
+                    const deltaContent = eventData.delta.content[0]?.text?.value;
+                    if (deltaContent) {
+                      const currentContent = messageMap.get(eventData.id) || '';
+                      const newContent = currentContent + deltaContent;
+                      messageMap.set(eventData.id, newContent);
+                      
+                      // Update existing message with new content
+                      setMessages((prev) => {
+                        return prev.map(msg => 
+                          msg.id === eventData.id 
+                            ? { ...msg, text: newContent }
+                            : msg
+                        );
+                      });
                     }
                   }
-                }
-              } catch (e) {
-                console.error('Error parsing event data:', e);
+                  break;
+
+                case 'thread.created':
+                  localStorage.setItem('chat_thread_id', eventData.id);
+                  break;
+
+                case 'thread.run.completed':
+                  // Just log completion, no message manipulation needed
+                  console.log('Run completed');
+                  break;
               }
+            } catch (e) {
+              console.error('Error parsing event data:', e);
+              continue;
             }
           }
         }
-      } finally {
-        reader.releaseLock();
-        // Ensure typing indicator is removed when done
-        setMessages((prev) => prev.map(msg => 
-          msg.id === messageId
-            ? { ...msg, isTyping: false }
-            : msg
-        ));
       }
+    } catch (err) {
+      console.error('Error reading stream:', err);
+      setError('Error reading response stream');
+      setMessages((prev) => prev.filter(msg => msg.id !== typingMessageId));
+    } finally {
+      reader.cancel();
     }
   };
 
@@ -300,7 +317,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      handleSend(message);
     }
   };
 
@@ -384,10 +401,10 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                     >
                       {msg.isTyping ? (
                         <div className="flex items-center space-x-2 h-6">
-                          <div className="typing-indicator">
-                            <span></span>
-                            <span></span>
-                            <span></span>
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                           </div>
                         </div>
                       ) : (
@@ -416,15 +433,6 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                     </div>
                   </div>
                 ))}
-                {isCreatingThread && (
-                  <div className="flex items-center justify-center space-x-2 text-blue-600 text-sm bg-blue-50 p-3 rounded mb-4">
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Creating conversation thread...</span>
-                  </div>
-                )}
                 {error && (
                   <div className="text-red-600 text-sm bg-red-50 p-3 rounded mb-4">
                     {error}
@@ -507,7 +515,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                   </div>
                   <div className="flex-grow"></div>
                   <button
-                    onClick={handleSend}
+                    onClick={() => handleSend(message)}
                     disabled={!message && !selectedFile}
                     className="px-4 py-2 rounded transition-colors"
                     style={{
