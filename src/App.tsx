@@ -5,7 +5,6 @@ import { Footer } from './components/Footer';
 import { BasicDemo } from './pages/BasicDemo';
 import { EcommerceDemo } from './pages/EcommerceDemo';
 import { SupportDemo } from './pages/SupportDemo';
-import { PlaygroundDemo } from './pages/PlaygroundDemo';
 import { AllFeaturesDemo } from './pages/AllFeaturesDemo';
 import { SignIn } from './components/auth/SignIn';
 import { SignUp } from './components/auth/SignUp';
@@ -128,7 +127,6 @@ function App() {
               <Route path="/basic" element={<BasicDemo />} />
               <Route path="/ecommerce" element={<EcommerceDemo />} />
               <Route path="/support" element={<SupportDemo />} />
-              <Route path="/playground" element={<PlaygroundDemo />} />
               <Route path="/chatbot-playground" element={<ChatbotPlayground />} />
               <Route path="/features" element={<AllFeaturesDemo />} />
               <Route path="/signin" element={<SignIn />} />

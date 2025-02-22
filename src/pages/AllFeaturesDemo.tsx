@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChatWidget } from '../components/ChatWidget';
 import { CodeSnippets } from '../components/CodeSnippets';
+import { Link } from 'react-router-dom';
 
 interface DemoSection {
   title: string;
@@ -339,12 +340,12 @@ export const AllFeaturesDemo: React.FC = () => {
         <div className="text-center">
           <p className="text-gray-600">
             Visit our{' '}
-            <a
-              href="/playground"
-              className="text-indigo-600 hover:text-indigo-800 font-medium"
+            <Link
+              to="/chatbot-playground"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
             >
               Interactive Playground
-            </a>{' '}
+            </Link>
             to customize the chat widget to your needs.
           </p>
         </div>

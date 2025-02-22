@@ -13,8 +13,7 @@ export const Navigation = () => {
     { path: '/ecommerce', label: 'E-commerce Demo' },
     { path: '/support', label: 'Support Demo' },
     { path: '/features', label: 'Features' },
-    { path: '/playground', label: 'Playground' },
-    { path: '/chatbot-playground', label: 'Chatbot Playground' },
+    { path: '/chatbot-playground', label: 'Playground' },
   ];
 
   const handleLogout = () => {

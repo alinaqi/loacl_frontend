@@ -13,6 +13,7 @@ interface Message {
   type: 'user' | 'bot';
   timestamp: Date;
   file?: FilePreview;
+  isTyping?: boolean;
 }
 
 interface ChatWidgetProps {
@@ -66,10 +67,11 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
       timestamp: new Date(),
     },
   ]);
-  const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [threadId, setThreadId] = useState<string>('');
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -123,15 +125,12 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
 
     // Send message using our backend API
-    setIsTyping(true);
     setError(null);
 
     try {
       // Create a thread if we don't have one
-      const storedThreadId = localStorage.getItem(`thread_${assistantId}`);
-      let threadId = storedThreadId || '';
-      
       if (!threadId) {
+        setIsCreatingThread(true);
         const threadResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantId}`, {
           method: 'POST',
           headers: {
@@ -139,151 +138,182 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
             'Authorization': `Bearer ${accessToken}`,
             'Accept': 'text/event-stream',
           },
-          body: JSON.stringify({
-            messages: [{
-              role: "user",
-              content: message
-            }]
-          }),
+          body: JSON.stringify({}) // Create empty thread first
         });
 
         if (!threadResponse.ok) {
-          const errorData = await threadResponse.json();
-          console.error('Thread creation error:', errorData);
-          throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 
-            (Array.isArray(errorData.detail) ? errorData.detail[0].msg : 'Failed to create thread'));
+          throw new Error(`Failed to create thread: ${threadResponse.status}`);
         }
 
-        // Handle streaming response for thread creation
         const reader = threadResponse.body?.getReader();
         const decoder = new TextDecoder();
+        let newThreadId = '';
 
         if (reader) {
           try {
+            let buffer = '';
             while (true) {
               const { done, value } = await reader.read();
               if (done) break;
 
-              const chunk = decoder.decode(value);
-              const lines = chunk.split('\n');
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
 
               for (const line of lines) {
-                if (line.startsWith('event: ')) {
-                  const eventType = line.slice(7);
-                  console.log('Event type:', eventType);
-                  continue;
-                }
-
+                if (line.trim() === '') continue;
+                
                 if (line.startsWith('data: ')) {
                   try {
                     const eventData = JSON.parse(line.slice(6));
-                    console.log('Event data:', eventData);
-
-                    if (eventData.id && eventData.object === 'thread') {
-                      threadId = eventData.id;
-                      localStorage.setItem(`thread_${assistantId}`, threadId);
-                    } else if (eventData.error) {
-                      throw new Error(eventData.error);
+                    if (eventData.object === 'thread') {
+                      newThreadId = eventData.id;
+                      setThreadId(newThreadId);
+                      break;
                     }
                   } catch (e) {
                     console.error('Error parsing event data:', e);
                   }
                 }
               }
+              if (newThreadId) break;
             }
           } finally {
             reader.releaseLock();
+            setIsCreatingThread(false);
           }
         }
-      }
 
-      // Now send the message and get streaming response
-      const runResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/${threadId}/runs/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({
-          assistant_id: assistantId,
-          instructions: null,
-          tools: [],
-          messages: [{
-            role: "user",
-            content: message
-          }]
-        }),
-      });
-
-      if (!runResponse.ok) {
-        const errorData = await runResponse.json();
-        console.error('Run creation error:', errorData);
-        throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 
-          (Array.isArray(errorData.detail) ? errorData.detail[0].msg : 'Failed to start assistant run'));
-      }
-
-      // Handle streaming response
-      const reader = runResponse.body?.getReader();
-      const decoder = new TextDecoder();
-      let currentMessage = '';
-
-      if (reader) {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
-
-            for (const line of lines) {
-              if (line.startsWith('event: ')) {
-                const eventType = line.slice(7);
-                console.log('Event type:', eventType);
-                continue;
-              }
-
-              if (line.startsWith('data: ')) {
-                try {
-                  const eventData = JSON.parse(line.slice(6));
-                  console.log('Event data:', eventData);
-
-                  if (eventData.delta?.content) {
-                    const content = eventData.delta.content;
-                    for (const part of content) {
-                      if (part.type === 'text') {
-                        currentMessage += part.text.value;
-                        const botMessage: Message = {
-                          id: Date.now().toString(),
-                          text: currentMessage,
-                          type: 'bot',
-                          timestamp: new Date(),
-                        };
-                        setMessages((prev) => {
-                          const filtered = prev.filter(m => m.type !== 'bot' || m.text !== currentMessage);
-                          return [...filtered, botMessage];
-                        });
-                      }
-                    }
-                  } else if (eventData.error) {
-                    throw new Error(eventData.error);
-                  }
-                } catch (e) {
-                  console.error('Error parsing event data:', e);
-                }
-              }
-            }
-          }
-        } finally {
-          reader.releaseLock();
+        if (!newThreadId) {
+          throw new Error('Failed to get thread ID from response');
         }
+
+        // Now send the message to the new thread
+        const runResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/${newThreadId}/runs/stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'text/event-stream',
+          },
+          body: JSON.stringify({
+            assistant_id: assistantId,
+            instructions: null,
+            tools: [],
+            messages: [{
+              role: "user",
+              content: userMessage.text
+            }]
+          }),
+        });
+
+        if (!runResponse.ok) {
+          throw new Error(`Failed to create run: ${runResponse.status}`);
+        }
+
+        await handleRunResponse(runResponse);
+      } else {
+        // For existing thread, send message via run
+        const runResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/${threadId}/runs/stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'text/event-stream',
+          },
+          body: JSON.stringify({
+            assistant_id: assistantId,
+            instructions: null,
+            tools: [],
+            messages: [{
+              role: "user",
+              content: userMessage.text
+            }]
+          }),
+        });
+
+        if (!runResponse.ok) {
+          throw new Error(`Failed to create run: ${runResponse.status}`);
+        }
+
+        await handleRunResponse(runResponse);
       }
     } catch (err) {
       console.error('Chat error:', err);
       setError(err instanceof Error ? err.message : 'Failed to get response from assistant');
-    } finally {
-      setIsTyping(false);
+    }
+  };
+
+  // Helper function to handle run response streaming
+  const handleRunResponse = async (response: Response) => {
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let currentMessage = '';
+    let buffer = '';
+    const messageId = Date.now().toString();
+
+    // Add initial bot message with typing indicator
+    setMessages((prev) => [...prev, {
+      id: messageId,
+      text: '',
+      type: 'bot',
+      timestamp: new Date(),
+      isTyping: true
+    }]);
+
+    if (reader) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim() === '') continue;
+
+            if (line.startsWith('event: ')) {
+              const eventType = line.slice(7);
+              console.log('Event type:', eventType);
+              continue;
+            }
+
+            if (line.startsWith('data: ')) {
+              try {
+                const eventData = JSON.parse(line.slice(6));
+                console.log('Event data:', eventData);
+
+                if (eventData.delta?.content) {
+                  const content = eventData.delta.content;
+                  for (const part of content) {
+                    if (part.type === 'text') {
+                      currentMessage += part.text.value;
+                      // Update the existing message and remove typing indicator
+                      setMessages((prev) => prev.map(msg => 
+                        msg.id === messageId
+                          ? { ...msg, text: currentMessage, isTyping: false }
+                          : msg
+                      ));
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('Error parsing event data:', e);
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+        // Ensure typing indicator is removed when done
+        setMessages((prev) => prev.map(msg => 
+          msg.id === messageId
+            ? { ...msg, isTyping: false }
+            : msg
+        ));
+      }
     }
   };
 
@@ -384,9 +414,19 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                           : 'var(--message-bubble-color)',
                       }}
                     >
-                      <p className="text-gray-700 whitespace-pre-wrap break-words">
-                        {msg.text}
-                      </p>
+                      {msg.isTyping ? (
+                        <div className="flex items-center space-x-2 h-6">
+                          <div className="typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-gray-700 whitespace-pre-wrap break-words">
+                          {msg.text}
+                        </p>
+                      )}
                       {msg.file && (
                         <div className="mt-2 p-2 bg-white bg-opacity-50 rounded">
                           <div className="flex items-center space-x-2">
@@ -408,13 +448,13 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                     </div>
                   </div>
                 ))}
-                {isTyping && (
-                  <div className="flex items-center space-x-2 text-gray-500">
-                    <div className="typing-indicator">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
+                {isCreatingThread && (
+                  <div className="flex items-center justify-center space-x-2 text-blue-600 text-sm bg-blue-50 p-3 rounded mb-4">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Creating conversation thread...</span>
                   </div>
                 )}
                 {error && (

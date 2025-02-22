@@ -54,6 +54,8 @@ export const ChatbotPlayground: React.FC = () => {
     isAuthenticated: false,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreatingAssistant, setIsCreatingAssistant] = useState(false);
+  const [creationProgress, setCreationProgress] = useState<string>('');
 
   // Authenticate on component mount
   useEffect(() => {
@@ -93,31 +95,33 @@ export const ChatbotPlayground: React.FC = () => {
   const handleConfigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    // Validate all required fields
-    const requiredFields = {
-      openaiKey: 'OpenAI API Key',
-      assistantId: 'Assistant ID',
-      name: 'Assistant Name'
-    };
-
-    const missingFields = Object.entries(requiredFields)
-      .filter(([key]) => !config[key as keyof PlaygroundConfig])
-      .map(([, label]) => label);
-
-    if (missingFields.length > 0) {
-      setError(`Please provide: ${missingFields.join(', ')}`);
-      return;
-    }
-
-    // Validate Assistant ID format
-    if (!config.assistantId.startsWith('asst_')) {
-      setError('Invalid Assistant ID format. It should start with "asst_"');
-      return;
-    }
+    setIsCreatingAssistant(true);
+    setCreationProgress('Validating input...');
 
     try {
-      // First create the assistant in our database
+      // Validate all required fields
+      const requiredFields = {
+        openaiKey: 'OpenAI API Key',
+        assistantId: 'Assistant ID',
+        name: 'Assistant Name'
+      };
+
+      const missingFields = Object.entries(requiredFields)
+        .filter(([key]) => !config[key as keyof PlaygroundConfig])
+        .map(([, label]) => label);
+
+      if (missingFields.length > 0) {
+        throw new Error(`Please provide: ${missingFields.join(', ')}`);
+      }
+
+      // Validate Assistant ID format
+      if (!config.assistantId.startsWith('asst_')) {
+        throw new Error('Invalid Assistant ID format. It should start with "asst_"');
+      }
+
+      setCreationProgress('Creating assistant...');
+      
+      // Create the assistant in our database
       const createResponse = await fetch('http://localhost:8000/api/v1/assistants', {
         method: 'POST',
         headers: {
@@ -137,55 +141,27 @@ export const ChatbotPlayground: React.FC = () => {
 
       if (!createResponse.ok) {
         const errorData = await createResponse.json();
-        console.error('Assistant Creation Error:', errorData);
-        
         if (Array.isArray(errorData.detail)) {
-          const errorMessages = errorData.detail
-            .map((err: { msg: string; loc: string[] }) => `${err.msg} at ${err.loc.join('.')}`)
-            .join(', ');
-          throw new Error(errorMessages);
+          throw new Error(errorData.detail.map((err: { msg: string }) => err.msg).join(', '));
         }
-        
         throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 'Failed to create assistant');
       }
 
+      setCreationProgress('Assistant created successfully!');
+      
       // Get the created assistant's UUID
       const assistantData = await createResponse.json();
       const assistantUuid = assistantData.id;
 
-      // Now create a thread using the UUID
-      const threadResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantUuid}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.accessToken}`,
-        },
-        body: JSON.stringify({
-          messages: [{
-            role: "user",
-            content: "Hello!"
-          }]
-        }),
-      });
-
-      if (!threadResponse.ok) {
-        const errorData = await threadResponse.json();
-        console.error('Thread Creation Error:', errorData);
-        if (errorData.error) {
-          throw new Error(errorData.error.message);
-        }
-        throw new Error(typeof errorData.detail === 'string' ? errorData.detail : 'Failed to create thread');
-      }
-
-      const threadData = await threadResponse.json();
-      console.log('Thread created:', threadData);
-
       // Update config with the UUID for future API calls
       setConfig(prev => ({ ...prev, uuid: assistantUuid }));
       setIsConfigured(true);
+
     } catch (error) {
       console.error('Full error:', error);
       setError(error instanceof Error ? error.message : 'Failed to configure assistant');
+    } finally {
+      setIsCreatingAssistant(false);
     }
   };
 
@@ -250,7 +226,7 @@ export const ChatbotPlayground: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Chatbot Playground</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Playground</h1>
           <p className="mt-2 text-gray-600">
             Test your OpenAI assistant by providing your API key and assistant ID
           </p>
@@ -341,11 +317,22 @@ export const ChatbotPlayground: React.FC = () => {
                 </div>
               )}
 
+              {isCreatingAssistant && (
+                <div className="text-blue-600 text-sm bg-blue-50 p-3 rounded flex items-center justify-center space-x-2">
+                  <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>{creationProgress}</span>
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={isCreatingAssistant}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Start Testing
+                {isCreatingAssistant ? 'Creating Assistant...' : 'Start Testing'}
               </button>
             </form>
           </div>
