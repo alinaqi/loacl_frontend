@@ -30,14 +30,21 @@ const initialContext: AuthContextType = {
 export const AuthContext = createContext<AuthContextType>(initialContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Initialize states from localStorage
+  const storedToken = localStorage.getItem('accessToken');
+  const storedUser = localStorage.getItem('user');
+
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(!!storedToken);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(() => {
-    // Initialize from localStorage if available
-    return localStorage.getItem('accessToken');
-  });
+  const [accessToken, setAccessToken] = useState<string | null>(storedToken);
 
   const login = async (credentials: SignInCredentials) => {
     setIsLoading(true);
@@ -60,16 +67,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const data = await response.json();
+      const userData = { email: credentials.email };
+      
+      // Store both token and user data
       localStorage.setItem('accessToken', data.access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
       setAccessToken(data.access_token);
       setIsAuthenticated(true);
-      setUser({ email: credentials.email });
+      setUser(userData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login');
       setIsAuthenticated(false);
       setUser(null);
       setAccessToken(null);
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('user');
     } finally {
       setIsLoading(false);
     }
@@ -104,14 +117,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(false);
     setAccessToken(null);
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
   };
+
+  // Verify token validity on mount and after token changes
+  useEffect(() => {
+    const verifyAuth = async () => {
+      if (!accessToken) {
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
+      }
+
+      try {
+        const response = await fetch('http://localhost:8000/api/v1/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Token verification failed');
+        }
+
+        setIsAuthenticated(true);
+      } catch (err) {
+        console.error('Token verification failed:', err);
+        setIsAuthenticated(false);
+        setUser(null);
+        setAccessToken(null);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+      }
+    };
+
+    verifyAuth();
+  }, [accessToken]);
 
   // Auto-login with credentials from env if needed
   useEffect(() => {
     const autoLogin = async () => {
       // If we already have a token, no need to auto-login
       if (accessToken) {
-        setIsAuthenticated(true);
         return;
       }
 

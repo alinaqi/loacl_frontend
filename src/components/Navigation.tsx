@@ -51,6 +51,16 @@ export const Navigation = () => {
             {isAuthenticated ? (
               <>
                 <Link
+                  to="/dashboard"
+                  className={`text-sm font-medium ${
+                    location.pathname === '/dashboard'
+                      ? 'text-gray-900'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Dashboard
+                </Link>
+                <Link
                   to="/profile"
                   className={`text-sm font-medium ${
                     location.pathname === '/profile'

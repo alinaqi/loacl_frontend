@@ -16,21 +16,16 @@ export interface ChatbotDesignSettings {
     text_color: string;
     background_color: string;
   };
-  layout: {
-    width: string;
-    height: string;
-    position: 'left' | 'right';
-    bubble_icon?: string;
-  };
-  typography: {
-    font_family: string;
-    font_size: string;
-  };
+  chat_bubble_text: string;
+  initial_message: string;
 }
 
 export interface Chatbot {
   id: string;
   name: string;
+  description: string;
+  instructions: string;
+  model: string;
   assistant_id: string;
   created_at: string;
   updated_at: string;
@@ -41,6 +36,9 @@ export interface Chatbot {
 
 export interface CreateChatbotRequest {
   name: string;
+  description: string;
+  instructions: string;
+  model: string;
   api_key: string;
   assistant_id: string;
   tools_enabled: string[];
