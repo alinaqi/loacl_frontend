@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChatWidget } from '../components/ChatWidget';
 import { CodeSnippets } from '../components/CodeSnippets';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 interface DemoSection {
   title: string;
@@ -191,6 +192,7 @@ export const CustomPositionDemo = () => {
 
 export const AllFeaturesDemo: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const { accessToken } = useAuth();
 
   const demoSections: DemoSection[] = [
     {
@@ -323,6 +325,7 @@ export const AllFeaturesDemo: React.FC = () => {
                   <ChatWidget
                     {...section.config}
                     previewMode={true}
+                    accessToken={accessToken}
                   />
                 </div>
               )}

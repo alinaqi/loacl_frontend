@@ -1,7 +1,11 @@
 import React from 'react';
 import { ChatWidget } from '../components/ChatWidget';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export const SupportDemo = () => {
+  const { accessToken } = useAuth();
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
@@ -60,7 +64,21 @@ export const SupportDemo = () => {
         </div>
       </div>
 
-      <ChatWidget />
+      {/* Playground Link */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <p className="text-gray-600">
+          Visit our{' '}
+          <Link
+            to="/chatbot-playground"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            Interactive Playground
+          </Link>
+          {' '}to customize the chat widget to your needs.
+        </p>
+      </div>
+
+      <ChatWidget accessToken={accessToken} />
     </div>
   );
 }; 

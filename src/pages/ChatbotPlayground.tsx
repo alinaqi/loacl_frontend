@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ChatWidget } from '../components/ChatWidget';
+import { useAuth } from '../context/AuthContext';
 
 interface PlaygroundConfig {
   openaiKey: string;
@@ -22,12 +23,8 @@ interface PlaygroundConfig {
   };
 }
 
-interface AuthState {
-  accessToken: string;
-  isAuthenticated: boolean;
-}
-
 export const ChatbotPlayground: React.FC = () => {
+  const { accessToken, isAuthenticated } = useAuth();
   const [config, setConfig] = useState<PlaygroundConfig>({
     openaiKey: '',
     assistantId: '',
@@ -49,48 +46,9 @@ export const ChatbotPlayground: React.FC = () => {
   });
   const [isConfigured, setIsConfigured] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [auth, setAuth] = useState<AuthState>({
-    accessToken: '',
-    isAuthenticated: false,
-  });
   const [isSaving, setIsSaving] = useState(false);
   const [isCreatingAssistant, setIsCreatingAssistant] = useState(false);
   const [creationProgress, setCreationProgress] = useState<string>('');
-
-  // Authenticate on component mount
-  useEffect(() => {
-    const authenticate = async () => {
-      try {
-        const formData = new URLSearchParams();
-        formData.append('username', 'ashaheen+system@workhub.ai');
-        formData.append('password', 'uraan123');
-        formData.append('grant_type', 'password');
-
-        const response = await fetch('http://localhost:8000/api/v1/auth/login/access-token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error('Authentication failed');
-        }
-
-        const data = await response.json();
-        setAuth({
-          accessToken: data.access_token,
-          isAuthenticated: true,
-        });
-      } catch (err) {
-        console.error('Authentication error:', err);
-        setError('Failed to authenticate. Please try again later.');
-      }
-    };
-
-    authenticate();
-  }, []);
 
   const handleConfigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +84,7 @@ export const ChatbotPlayground: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           name: config.name,
@@ -166,7 +124,7 @@ export const ChatbotPlayground: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!auth.isAuthenticated || !config.uuid) {
+    if (!isAuthenticated || !config.uuid) {
       setError('Not authenticated or assistant not properly configured');
       return;
     }
@@ -180,7 +138,7 @@ export const ChatbotPlayground: React.FC = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           theme: {
@@ -207,7 +165,7 @@ export const ChatbotPlayground: React.FC = () => {
     }
   };
 
-  if (!auth.isAuthenticated) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
@@ -539,7 +497,7 @@ export const ChatbotPlayground: React.FC = () => {
                     }}
                     openaiKey={config.openaiKey}
                     assistantId={config.uuid || config.assistantId}
-                    accessToken={auth.accessToken}
+                    accessToken={accessToken}
                     previewMode={true}
                     features={config.features}
                   />

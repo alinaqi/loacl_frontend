@@ -10,6 +10,7 @@ import { SignIn } from './components/auth/SignIn';
 import { SignUp } from './components/auth/SignUp';
 import { Dashboard } from './pages/Dashboard';
 import { ChatbotPlayground } from './pages/ChatbotPlayground';
+import { UserProfile } from './pages/UserProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -26,22 +27,15 @@ const Home = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div className="max-w-4xl w-full">
       <div className="text-center mb-12">
-        <div className="flex justify-center mb-8">
-          <img
-            src="/OpenAI.png"
-            alt="OpenAI Logo"
-            className="h-16 w-auto"
-          />
-        </div>
-        <div className="text-sm text-gray-500 mb-8">
-          * This is an open-source project and is not affiliated with, endorsed by, or connected to OpenAI.
-        </div>
         <h1 className="text-5xl font-extrabold text-gray-900 mb-6 tracking-tight">
           Welcome to <span className="text-indigo-600">LOACL</span>
         </h1>
-        <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+        <p className="text-xl text-gray-600 mb-4 max-w-3xl mx-auto leading-relaxed">
           A Lightweight OpenAI Assistants Chatbot Library that simplifies the integration of OpenAI's powerful AI assistants into your applications.
         </p>
+        <div className="text-sm text-gray-500 mb-8">
+          * This is an open-source project and is not affiliated with, endorsed by, or connected to OpenAI.
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -127,7 +121,6 @@ function App() {
               <Route path="/basic" element={<BasicDemo />} />
               <Route path="/ecommerce" element={<EcommerceDemo />} />
               <Route path="/support" element={<SupportDemo />} />
-              <Route path="/chatbot-playground" element={<ChatbotPlayground />} />
               <Route path="/features" element={<AllFeaturesDemo />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
@@ -136,6 +129,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chatbot-playground"
+                element={
+                  <ProtectedRoute>
+                    <ChatbotPlayground />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <UserProfile />
                   </ProtectedRoute>
                 }
               />

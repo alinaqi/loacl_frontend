@@ -39,7 +39,7 @@ interface ChatWidgetProps {
   previewMode?: boolean;
   openaiKey?: string;
   assistantId?: string;
-  accessToken?: string;
+  accessToken?: string | null;
 }
 
 export const ChatWidget: React.FC<ChatWidgetProps> = ({
@@ -51,8 +51,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     showEmoji: true,
   },
   previewMode = false,
-  openaiKey,
-  assistantId,
+  openaiKey = import.meta.env.VITE_OPENAI_API_KEY,
+  assistantId = import.meta.env.VITE_ASSISTANT_ID,
   accessToken,
 }) => {
   const [isOpen, setIsOpen] = useState(previewMode);
@@ -136,64 +136,31 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'text/event-stream',
+            'X-API-Key': openaiKey
           },
-          body: JSON.stringify({}) // Create empty thread first
+          body: JSON.stringify({
+            messages: [{
+              role: "user",
+              content: userMessage.text
+            }]
+          })
         });
 
         if (!threadResponse.ok) {
           throw new Error(`Failed to create thread: ${threadResponse.status}`);
         }
 
-        const reader = threadResponse.body?.getReader();
-        const decoder = new TextDecoder();
-        let newThreadId = '';
-
-        if (reader) {
-          try {
-            let buffer = '';
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
-
-              for (const line of lines) {
-                if (line.trim() === '') continue;
-                
-                if (line.startsWith('data: ')) {
-                  try {
-                    const eventData = JSON.parse(line.slice(6));
-                    if (eventData.object === 'thread') {
-                      newThreadId = eventData.id;
-                      setThreadId(newThreadId);
-                      break;
-                    }
-                  } catch (e) {
-                    console.error('Error parsing event data:', e);
-                  }
-                }
-              }
-              if (newThreadId) break;
-            }
-          } finally {
-            reader.releaseLock();
-            setIsCreatingThread(false);
-          }
-        }
-
-        if (!newThreadId) {
-          throw new Error('Failed to get thread ID from response');
-        }
+        const threadData = await threadResponse.json();
+        setThreadId(threadData.id);
+        setIsCreatingThread(false);
 
         // Now send the message to the new thread
-        const runResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/${newThreadId}/runs/stream`, {
+        const runResponse = await fetch(`http://localhost:8000/api/v1/assistant-streaming/threads/${threadData.id}/runs/stream`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
+            'X-API-Key': openaiKey,
             'Accept': 'text/event-stream',
           },
           body: JSON.stringify({
@@ -219,6 +186,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
+            'X-API-Key': openaiKey,
             'Accept': 'text/event-stream',
           },
           body: JSON.stringify({

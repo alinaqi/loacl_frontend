@@ -1,44 +1,75 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '../types/auth';
-import { authApi } from '../services/api';
 import { SignInCredentials, SignUpCredentials } from '../types/auth';
 
-interface AuthContextType {
-  user: User | null;
+interface User {
+  email: string;
+}
+
+export interface AuthContextType {
   isAuthenticated: boolean;
+  user: User | null;
   isLoading: boolean;
   error: string | null;
   login: (credentials: SignInCredentials) => Promise<void>;
   register: (credentials: SignUpCredentials) => Promise<void>;
   logout: () => void;
+  accessToken: string | null;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const initialContext: AuthContextType = {
+  user: null,
+  isAuthenticated: false,
+  isLoading: false,
+  error: null,
+  login: async () => {},
+  register: async () => {},
+  logout: () => {},
+  accessToken: null,
+};
+
+export const AuthContext = createContext<AuthContextType>(initialContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(() => {
+    // Initialize from localStorage if available
+    return localStorage.getItem('accessToken');
+  });
 
   const login = async (credentials: SignInCredentials) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await authApi.login(credentials);
-      const userData = {
-        id: response.user.id,
-        email: response.user.email,
-        name: response.user.full_name,
-        created_at: response.user.created_at,
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      const response = await fetch('http://localhost:8000/api/v1/auth/login/access-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          username: credentials.email,
+          password: credentials.password,
+          grant_type: 'password',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('accessToken', data.access_token);
+      setAccessToken(data.access_token);
+      setIsAuthenticated(true);
+      setUser({ email: credentials.email });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login');
-      throw err;
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
+      setIsAuthenticated(false);
+      setUser(null);
+      setAccessToken(null);
+      localStorage.removeItem('accessToken');
     } finally {
       setIsLoading(false);
     }
@@ -48,46 +79,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setError(null);
     try {
-      await authApi.register({
-        email: credentials.email,
-        password: credentials.password,
-        name: credentials.name,
+      const response = await fetch('http://localhost:8000/api/v1/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
       });
+
+      if (!response.ok) {
+        throw new Error('Registration failed');
+      }
+
+      await login({ email: credentials.email, password: credentials.password });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to register');
-      throw err;
+      setError(err instanceof Error ? err.message : 'An error occurred during registration');
     } finally {
       setIsLoading(false);
     }
   };
 
   const logout = () => {
-    authApi.logout();
     setUser(null);
-    localStorage.removeItem('user');
+    setIsAuthenticated(false);
+    setAccessToken(null);
+    localStorage.removeItem('accessToken');
   };
 
-  // Check token validity on mount
+  // Auto-login with credentials from env if needed
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token && user) {
-      // If no token but user exists in state, log them out
-      logout();
-    }
-  }, []);
+    const autoLogin = async () => {
+      // If we already have a token, no need to auto-login
+      if (accessToken) {
+        setIsAuthenticated(true);
+        return;
+      }
+
+      const username = import.meta.env.VITE_USER;
+      const password = import.meta.env.VITE_PASSWORD;
+
+      if (username && password) {
+        try {
+          await login({ email: username, password: password });
+        } catch (err) {
+          console.error('Auto-login error:', err);
+        }
+      }
+    };
+
+    autoLogin();
+  }, []); // Run only once on mount
+
+  const value = {
+    user,
+    isAuthenticated,
+    isLoading,
+    error,
+    login,
+    register,
+    logout,
+    accessToken,
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        error,
-        login,
-        register,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
