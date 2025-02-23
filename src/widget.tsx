@@ -1,61 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { ChatWidget } from './components/ChatWidget';
 
-interface WidgetConfig {
-  assistantId: string;
-  apiKey: string;
-  features?: {
-    showFileUpload?: boolean;
-    showVoiceInput?: boolean;
-    showEmoji?: boolean;
-  };
-}
+// Create widget container
+const widgetContainer = document.createElement('div');
+widgetContainer.id = 'loacl-widget-container';
+document.body.appendChild(widgetContainer);
 
-const WidgetApp = () => {
-  const [config, setConfig] = useState<WidgetConfig | null>(null);
-
-  useEffect(() => {
-    // Notify parent that widget is ready
-    window.parent.postMessage({ type: 'ready' }, '*');
-
-    // Listen for messages from parent
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === 'init') {
-        setConfig(event.data.config);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  if (!config) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-screen bg-transparent">
-      <ChatWidget
-        assistantId={config.assistantId}
-        apiKey={config.apiKey}
-        features={config.features}
-        previewMode={true}
-      />
-    </div>
-  );
-};
-
-const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(
-    <React.StrictMode>
-      <WidgetApp />
-    </React.StrictMode>
-  );
-} 
+// Initialize widget
+const root = createRoot(widgetContainer);
+root.render(
+  <React.StrictMode>
+    <ChatWidget
+      assistantId={new URLSearchParams(window.location.search).get('assistantId') || ''}
+      apiKey={new URLSearchParams(window.location.search).get('apiKey') || ''}
+      position={new URLSearchParams(window.location.search).get('position') as 'left' | 'right' || 'right'}
+      features={JSON.parse(new URLSearchParams(window.location.search).get('features') || '{}')}
+      customStyles={JSON.parse(new URLSearchParams(window.location.search).get('styles') || '{}')}
+    />
+  </React.StrictMode>
+); 

@@ -1,21 +1,14 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useParams } from 'react-router-dom';
 import { ChatWidget } from '../components/ChatWidget';
 
 export const Widget: React.FC = () => {
   const { assistantId } = useParams<{ assistantId: string }>();
   const params = new URLSearchParams(window.location.search);
-  const position = params.get('position') as 'left' | 'right' || 'right';
+  const position = params.get('position') as 'inpage' | 'floating' || 'floating';
   const features = JSON.parse(params.get('features') || '{}');
   const styles = JSON.parse(params.get('styles') || '{}');
   const apiKey = params.get('apiKey');
-
-  useEffect(() => {
-    // Set the API key in localStorage for the ChatWidget to use
-    if (apiKey) {
-      localStorage.setItem('openai_api_key', apiKey);
-    }
-  }, [apiKey]);
 
   if (!assistantId) {
     return (
@@ -33,11 +26,14 @@ export const Widget: React.FC = () => {
     );
   }
 
+  const containerClass = position === 'inpage' ? 'h-full' : 'h-screen';
+
   return (
-    <div className="h-screen">
+    <div className={containerClass}>
       <ChatWidget
         assistantId={assistantId}
         position={position}
+        apiKey={apiKey}
         features={{
           showFileUpload: true,
           showVoiceInput: true,
@@ -45,6 +41,7 @@ export const Widget: React.FC = () => {
           ...features,
         }}
         customStyles={styles}
+        previewMode={position === 'inpage'}
       />
     </div>
   );

@@ -33,7 +33,7 @@ interface ChatWidgetProps {
     '--message-bubble-color'?: string;
     '--user-message-color'?: string;
   };
-  position?: 'left' | 'right';
+  position?: 'inpage' | 'floating';
   features?: {
     showFileUpload?: boolean;
     showVoiceInput?: boolean;
@@ -46,7 +46,7 @@ interface ChatWidgetProps {
 
 export const ChatWidget: React.FC<ChatWidgetProps> = ({
   customStyles = {},
-  position = 'right',
+  position = 'floating',
   features = {
     showFileUpload: true,
     showVoiceInput: true,
@@ -54,7 +54,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   },
   previewMode = false,
   assistantId = import.meta.env.VITE_ASSISTANT_ID,
-  apiKey,
+  apiKey = import.meta.env.VITE_BACKEND_KEY,
 }) => {
   const [isOpen, setIsOpen] = useState(previewMode);
   const [message, setMessage] = useState('');
@@ -127,17 +127,17 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Create a typing indicator message
-      const typingMessageId = uuidv4();
-      const typingMessage: Message = {
-        id: typingMessageId,
-        text: '',
+      // Create a thinking message
+      const thinkingMessageId = uuidv4();
+      const thinkingMessage: Message = {
+        id: thinkingMessageId,
+        text: 'Thinking...',
         type: 'bot',
         timestamp: new Date(),
         isUser: false,
         isTyping: true
       };
-      setMessages(prev => [...prev, typingMessage]);
+      setMessages(prev => [...prev, thinkingMessage]);
 
       const headers = {
         'Content-Type': 'application/json',
@@ -145,16 +145,12 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
         'Accept': 'text/event-stream',
       };
 
-      let response;
-      let threadId = null;
-
-      // Create new thread with initial message
       const messageData = {
         role: "user",
         content: currentMessage
       };
       
-      response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantId}`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantId}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -167,43 +163,37 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
       }
 
       // Handle streaming response
-      await handleRunResponse(response, typingMessageId);
+      await handleRunResponse(response, thinkingMessageId);
     } catch (err) {
       console.error('Error in chat:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while processing your message');
-      // Clean up any typing indicators
+      // Clean up any thinking messages
       setMessages(prev => prev.filter(msg => !msg.isTyping));
     }
   };
 
-  // Helper function to handle run response streaming
-  const handleRunResponse = async (response: Response, typingMessageId: string) => {
+  const handleRunResponse = async (response: Response, thinkingMessageId: string) => {
     const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    const messageMap = new Map(); // Track messages by ID
-
     if (!reader) {
-      setError('Failed to read response stream');
-      setMessages((prev) => prev.filter(msg => msg.id !== typingMessageId));
-      return;
+      throw new Error('Failed to get response reader');
     }
+
+    const messageMap = new Map<string, string>();
+    let eventType = '';
+    let currentMessageId: string | null = null;
+    let hasAssistantMessage = false;
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
         if (done) {
-          // When stream is complete, remove typing indicator if it still exists
-          setMessages((prev) => prev.filter(msg => msg.id !== typingMessageId));
+          // Remove thinking message when stream is complete
+          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessageId));
           break;
         }
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        let eventType = '';
+        const text = new TextDecoder().decode(value);
+        const lines = text.split('\n');
 
         for (const line of lines) {
           if (line.trim() === '') continue;
@@ -221,69 +211,119 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
               switch (eventType) {
                 case 'thread.message.created':
                   if (eventData.role === 'assistant' && !messageMap.has(eventData.id)) {
-                    const messageContent = eventData.content?.[0]?.text?.value || '';
-                    messageMap.set(eventData.id, messageContent);
-                    
-                    // Create new message only if it doesn't exist
-                    setMessages((prev) => {
-                      if (prev.some(msg => msg.id === eventData.id)) return prev;
-                      
-                      const newMessage: Message = {
-                        id: eventData.id,
-                        text: messageContent,
-                        type: 'bot',
-                        timestamp: new Date(),
-                        isUser: false,
-                        isTyping: false
-                      };
-                      return [...prev.filter(msg => msg.id !== typingMessageId), newMessage];
-                    });
+                    hasAssistantMessage = true;
+                    currentMessageId = eventData.id;
+                    messageMap.set(eventData.id, '');
+                    // Keep the thinking message until we get actual content
                   }
                   break;
 
                 case 'thread.message.delta':
-                  if (eventData.delta?.content && eventData.id) {
+                  if (eventData.delta?.content && currentMessageId) {
                     const deltaContent = eventData.delta.content[0]?.text?.value;
                     if (deltaContent) {
-                      const currentContent = messageMap.get(eventData.id) || '';
+                      const currentContent = messageMap.get(currentMessageId) || '';
                       const newContent = currentContent + deltaContent;
-                      messageMap.set(eventData.id, newContent);
+                      messageMap.set(currentMessageId, newContent);
                       
-                      // Update existing message with new content
-                      setMessages((prev) => {
-                        return prev.map(msg => 
-                          msg.id === eventData.id 
-                            ? { ...msg, text: newContent }
-                            : msg
-                        );
-                      });
+                      // Only remove thinking message and show content when we have actual content
+                      if (newContent.trim()) {
+                        setMessages((prev) => {
+                          const existingMessage = prev.find(msg => msg.id === currentMessageId);
+                          if (existingMessage) {
+                            return prev.map(msg => 
+                              msg.id === currentMessageId 
+                                ? { ...msg, text: newContent }
+                                : msg
+                            );
+                          } else if (currentMessageId) {
+                            // First content received, replace thinking message
+                            return [...prev.filter(msg => msg.id !== thinkingMessageId), {
+                              id: currentMessageId,
+                              text: newContent,
+                              type: 'bot',
+                              timestamp: new Date(),
+                              isUser: false,
+                              isTyping: false
+                            }];
+                          }
+                          return prev;
+                        });
+                      }
                     }
                   }
                   break;
 
-                case 'thread.created':
-                  // Store thread ID in memory instead of localStorage
-                  threadId = eventData.id;
+                case 'thread.message.completed':
+                  // Only remove thinking message if we have actual content
+                  if (currentMessageId && messageMap.get(currentMessageId)?.trim()) {
+                    setMessages(prev => prev.filter(msg => msg.id !== thinkingMessageId));
+                  }
                   break;
 
                 case 'thread.run.completed':
-                  // Just log completion, no message manipulation needed
-                  console.log('Run completed');
+                  // If we haven't received an assistant message yet, try to fetch it
+                  if (!hasAssistantMessage && eventData.thread_id) {
+                    try {
+                      const messageResponse = await fetch(
+                        `${import.meta.env.VITE_BACKEND_URL}/api/v1/assistant-communication/threads/${eventData.thread_id}/messages?assistant_id=${assistantId}`,
+                        { 
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': apiKey,
+                          }
+                        }
+                      );
+                      
+                      if (messageResponse.ok) {
+                        const messages = await messageResponse.json();
+                        const lastAssistantMessage = messages
+                          .reverse()
+                          .find((msg: { role: string; }) => msg.role === 'assistant');
+                        
+                        if (lastAssistantMessage?.content?.[0]?.text?.value) {
+                          const messageContent = lastAssistantMessage.content[0].text.value;
+                          const messageId = lastAssistantMessage.id;
+                          
+                          setMessages((prev) => {
+                            if (prev.some(msg => msg.id === messageId)) return prev;
+                            
+                            const newMessage: Message = {
+                              id: messageId,
+                              text: messageContent,
+                              type: 'bot',
+                              timestamp: new Date(),
+                              isUser: false,
+                              isTyping: false
+                            };
+                            return [...prev.filter(msg => msg.id !== thinkingMessageId), newMessage];
+                          });
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error fetching messages:', error);
+                    }
+                  }
+                  break;
+
+                case 'error':
+                  console.error('Stream error:', eventData.error);
+                  setError(eventData.error || 'An error occurred during streaming');
+                  setMessages(prev => prev.filter(msg => msg.id !== thinkingMessageId));
                   break;
               }
-            } catch (e) {
-              console.error('Error parsing event data:', e);
-              continue;
+            } catch (error) {
+              console.error('Error parsing event data:', error);
             }
           }
         }
       }
-    } catch (err) {
-      console.error('Error reading stream:', err);
-      setError('Error reading response stream');
-      setMessages((prev) => prev.filter(msg => msg.id !== typingMessageId));
+    } catch (error) {
+      console.error('Error in stream processing:', error);
+      setError('Error processing response stream');
+      setMessages(prev => prev.filter(msg => msg.id !== thinkingMessageId));
     } finally {
-      reader.cancel();
+      reader.releaseLock();
     }
   };
 
@@ -311,7 +351,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     '--secondary-color': '#1d4ed8',
     '--text-color': '#111827',
     '--bg-color': '#ffffff',
-    '--widget-width': '400px',
+    '--widget-width': position === 'inpage' ? '100%' : '400px',
     '--widget-height': '600px',
     '--border-radius': '12px',
     '--font-family': 'Inter, system-ui, sans-serif',
@@ -321,13 +361,13 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     ...customStyles,
   };
 
-  const containerClasses = previewMode
-    ? 'relative'
-    : `fixed bottom-4 ${position === 'right' ? 'right-4' : 'left-4'} z-50`;
+  const containerClasses = position === 'inpage'
+    ? 'relative w-full h-full'
+    : `fixed bottom-4 right-4 z-[9999]`;
 
-  const chatWindowClasses = previewMode
-    ? 'relative'
-    : 'absolute bottom-20 right-0';
+  const chatWindowClasses = position === 'inpage'
+    ? 'relative w-full h-full'
+    : `fixed bottom-20 right-4 z-[9999]`;
 
   return (
     <div 
@@ -374,10 +414,10 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`mb-4 ${msg.type === 'user' ? 'ml-auto' : 'mr-auto'} max-w-[80%]`}
+                    className={`mb-4 flex flex-col ${msg.type === 'user' ? 'items-end' : 'items-start'}`}
                   >
                     <div
-                      className="rounded-lg p-3 shadow"
+                      className={`rounded-lg p-3 shadow max-w-[80%]`}
                       style={{
                         backgroundColor: msg.type === 'user' 
                           ? 'var(--user-message-color)' 
@@ -393,7 +433,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                           </div>
                         </div>
                       ) : (
-                        <p className="text-gray-700 whitespace-pre-wrap break-words">
+                        <p className={`text-gray-700 whitespace-pre-wrap break-words ${msg.type === 'user' ? 'text-right' : 'text-left'}`}>
                           {msg.text}
                         </p>
                       )}

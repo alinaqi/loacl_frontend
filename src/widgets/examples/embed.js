@@ -267,6 +267,12 @@
             return;
         }
 
+        // Validate containerId for inpage widget
+        if (userConfig.position === 'inpage' && !userConfig.containerId) {
+            console.error('Container ID is required for inpage widget');
+            return;
+        }
+
         // Merge configurations
         Object.assign(config, userConfig);
 
@@ -275,13 +281,9 @@
         tailwindScript.src = 'https://cdn.tailwindcss.com';
         d.head.appendChild(tailwindScript);
 
-        // Create container if needed
+        // Create container
         let container;
         if (config.position === 'inpage') {
-            if (!config.containerId) {
-                console.error('Container ID is required for inpage widget');
-                return;
-            }
             container = d.getElementById(config.containerId);
             if (!container) {
                 console.error('Container not found:', config.containerId);
@@ -357,32 +359,12 @@
 
         // Create widget HTML
         const createWidgetHTML = () => {
-            const floatingButton = config.position === 'floating' ? `
-                <button
-                    id="loacl-widget-button"
-                    class="loacl-widget-button bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4 shadow-lg"
-                    onclick="toggleLOACLWidget()"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                </button>
-            ` : '';
-
             const widgetHTML = `
-                ${floatingButton}
-                <div id="loacl-widget" class="loacl-widget bg-white rounded-lg shadow-xl ${config.position === 'inpage' ? '' : 'hidden'}">
+                <div class="loacl-widget bg-white rounded-lg shadow-xl h-full">
                     <div class="bg-blue-500 text-white p-4 rounded-t-lg flex justify-between items-center">
                         <h3 class="font-semibold">LOACL Chat</h3>
-                        ${config.position === 'floating' ? `
-                            <button onclick="toggleLOACLWidget()" class="text-white hover:text-gray-200">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        ` : ''}
                     </div>
-                    <div id="loacl-messages" class="h-96 p-4 bg-gray-50 overflow-y-auto">
+                    <div id="loacl-messages" class="h-[calc(100%-120px)] p-4 bg-gray-50 overflow-y-auto">
                         <div>
                             <div class="message assistant-message">Hello! How can I help you today?</div>
                         </div>
@@ -412,7 +394,38 @@
         };
 
         // Add widget to container
-        container.innerHTML = createWidgetHTML();
+        if (config.position === 'inpage') {
+            if (!config.containerId) {
+                console.error('Container ID is required for inpage widget');
+                return;
+            }
+            const container = d.getElementById(config.containerId);
+            if (!container) {
+                console.error('Container not found:', config.containerId);
+                return;
+            }
+            container.innerHTML = createWidgetHTML();
+        } else {
+            // Add floating button
+            const floatingButton = d.createElement('button');
+            floatingButton.id = 'loacl-widget-button';
+            floatingButton.className = 'loacl-widget-button bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4 shadow-lg';
+            floatingButton.onclick = function() {
+                const widget = d.getElementById('loacl-widget');
+                if (widget.classList.contains('open')) {
+                    widget.classList.remove('open');
+                    floatingButton.style.display = 'block';
+                } else {
+                    widget.classList.add('open');
+                    floatingButton.style.display = 'none';
+                }
+            };
+            d.body.appendChild(floatingButton);
+
+            // Add widget HTML
+            const widgetHTML = createWidgetHTML();
+            container.innerHTML = widgetHTML;
+        }
 
         // Add message handling
         w.handleMessageSubmit = async function(event) {
@@ -482,22 +495,6 @@
 
                 // Scroll to bottom
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
-        };
-
-        // Add toggle function
-        w.toggleLOACLWidget = function() {
-            const widget = d.getElementById('loacl-widget');
-            const button = d.getElementById('loacl-widget-button');
-            
-            if (config.position === 'floating') {
-                if (widget.classList.contains('open')) {
-                    widget.classList.remove('open');
-                    button.style.display = 'block';
-                } else {
-                    widget.classList.add('open');
-                    button.style.display = 'none';
-                }
             }
         };
     };
