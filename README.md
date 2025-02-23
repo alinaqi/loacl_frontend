@@ -1,6 +1,18 @@
 # LOACL Frontend
 
-A modern React-based frontend for the LOACL project.
+A modern React-based frontend for the LOACL project, featuring an embeddable chat widget and comprehensive chat interface management system.
+
+## Features
+
+- Embeddable Chat Widget
+- Multiple Embedding Options (iframe & JavaScript)
+- In-page & Floating Widget Modes
+- Real-time Chat Interface
+- File Upload Support
+- Voice Input Support
+- Emoji Support
+- Customizable Themes
+- Responsive Design
 
 ## Tech Stack
 
@@ -70,12 +82,51 @@ npm run format
 
 ```
 src/
-├── components/     # Reusable components
-├── features/      # Feature-based modules
-├── hooks/         # Custom React hooks
-├── utils/         # Utility functions
-├── services/      # API services
-└── types/         # TypeScript types
+├── components/          # Reusable components
+│   ├── ChatWidget/     # Main chat widget component
+│   ├── CodeSnippets/   # Code snippet display
+│   └── Navigation/     # Navigation components
+├── pages/              # Application pages
+│   ├── demos/          # Demo pages
+│   └── widget/         # Widget implementation
+├── services/           # API services
+│   ├── api.ts         # Base API configuration
+│   └── chatbotApi.ts  # Chatbot-specific API
+├── types/             # TypeScript type definitions
+├── utils/             # Utility functions
+├── hooks/             # Custom React hooks
+└── widgets/           # Widget implementations
+    └── examples/      # Example implementations
+
+public/
+├── widget.js         # Widget loader script
+└── widget.html       # Widget entry point
+```
+
+## Widget Implementation
+
+### JavaScript Embed
+```html
+<script src="https://your-domain.com/widget.js"></script>
+<script>
+  window.loaclWidget.init({
+    baseUrl: 'https://your-domain.com',
+    assistantId: 'your-assistant-id',
+    apiKey: 'your-api-key',
+    position: 'floating', // or 'inpage'
+    containerId: 'chat-widget-container' // required for 'inpage'
+  });
+</script>
+```
+
+### IFrame Embed
+```html
+<iframe
+  src="https://your-domain.com/widget/your-assistant-id?apiKey=your-api-key"
+  style="border: none; width: 400px; height: 600px;"
+  allow="microphone"
+  title="LOACL Chat Widget"
+></iframe>
 ```
 
 ## Contributing
@@ -87,4 +138,10 @@ src/
 
 ## License
 
-[MIT License](LICENSE)
+This project is licensed under a Non-Commercial Use License - see the [LICENSE](LICENSE) file for details.
+
+### Key License Points:
+- Free for non-commercial use
+- Commercial use is prohibited
+- Attribution required
+- Modifications allowed for non-commercial use only
