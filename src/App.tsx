@@ -13,6 +13,7 @@ import { ChatbotPlayground } from './pages/ChatbotPlayground';
 import { UserProfile } from './pages/UserProfile';
 import { ChatbotTest } from './pages/ChatbotTest';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { Widget } from './pages/Widget';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -111,56 +112,65 @@ const Home = () => (
 );
 
 function App() {
+  const location = window.location;
+  const isWidgetRoute = location.pathname.startsWith('/widget/');
+
   return (
     <AuthProvider>
       <BrowserRouter>
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-          <Navigation />
-          <div className="flex-grow">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/basic" element={<BasicDemo />} />
-              <Route path="/ecommerce" element={<EcommerceDemo />} />
-              <Route path="/support" element={<SupportDemo />} />
-              <Route path="/features" element={<AllFeaturesDemo />} />
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/signup" element={<SignUp />} />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/chatbot-playground"
-                element={
-                  <ProtectedRoute>
-                    <ChatbotPlayground />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <UserProfile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/chatbot/:id/test"
-                element={
-                  <ProtectedRoute>
-                    <ChatbotTest />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
+        {isWidgetRoute ? (
+          <Routes>
+            <Route path="/widget/:assistantId" element={<Widget />} />
+          </Routes>
+        ) : (
+          <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Navigation />
+            <div className="flex-grow">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/basic" element={<BasicDemo />} />
+                <Route path="/ecommerce" element={<EcommerceDemo />} />
+                <Route path="/support" element={<SupportDemo />} />
+                <Route path="/features" element={<AllFeaturesDemo />} />
+                <Route path="/signin" element={<SignIn />} />
+                <Route path="/signup" element={<SignUp />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chatbot-playground"
+                  element={
+                    <ProtectedRoute>
+                      <ChatbotPlayground />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <UserProfile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chatbot/:id/test"
+                  element={
+                    <ProtectedRoute>
+                      <ChatbotTest />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </div>
+            <Footer />
           </div>
-          <Footer />
-        </div>
+        )}
       </BrowserRouter>
     </AuthProvider>
   );

@@ -41,6 +41,7 @@ interface ChatWidgetProps {
   };
   previewMode?: boolean;
   assistantId?: string;
+  apiKey?: string;
 }
 
 export const ChatWidget: React.FC<ChatWidgetProps> = ({
@@ -53,6 +54,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
   },
   previewMode = false,
   assistantId = import.meta.env.VITE_ASSISTANT_ID,
+  apiKey,
 }) => {
   const [isOpen, setIsOpen] = useState(previewMode);
   const [message, setMessage] = useState('');
@@ -103,7 +105,6 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
       return;
     }
 
-    const apiKey = localStorage.getItem('api_key');
     if (!apiKey) {
       setError('API key is required');
       return;
@@ -145,38 +146,21 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
       };
 
       let response;
-      const threadId = localStorage.getItem('chat_thread_id');
+      let threadId = null;
 
-      if (!threadId) {
-        // Create new thread with initial message
-        const messageData = {
-          role: "user",
-          content: currentMessage
-        };
-        
-        response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantId}`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            messages: [messageData]
-          })
-        });
-      } else {
-        // Continue existing thread
-        response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/assistant-streaming/threads/${threadId}/runs/stream`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            assistant_id: assistantId,
-            instructions: null,
-            tools: [],
-            messages: [{
-              role: "user",
-              content: currentMessage
-            }]
-          })
-        });
-      }
+      // Create new thread with initial message
+      const messageData = {
+        role: "user",
+        content: currentMessage
+      };
+      
+      response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/assistant-streaming/threads/stream?assistant_id=${assistantId}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          messages: [messageData]
+        })
+      });
 
       if (!response.ok) {
         throw new Error('Failed to send message');
@@ -278,7 +262,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
                   break;
 
                 case 'thread.created':
-                  localStorage.setItem('chat_thread_id', eventData.id);
+                  // Store thread ID in memory instead of localStorage
+                  threadId = eventData.id;
                   break;
 
                 case 'thread.run.completed':

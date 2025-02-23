@@ -9,8 +9,23 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        iframe: path.resolve(__dirname, 'iframe.html'),
+        widget: path.resolve(__dirname, 'src/widget.tsx')
       },
+      output: {
+        dir: 'dist',
+        entryFileNames: '[name].js',
+        chunkFileNames: 'chunks/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]'
+      }
     },
+  },
+  server: {
+    port: 5173,
+    host: true,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      'Access-Control-Allow-Headers': 'X-Requested-With, content-type, Authorization, X-API-Key'
+    }
   },
 })

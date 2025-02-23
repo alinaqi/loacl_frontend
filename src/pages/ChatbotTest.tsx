@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Chatbot } from '../types/chatbot';
 import { chatbotApi } from '../services/chatbotApi';
 import { ChatWidget } from '../components/ChatWidget';
+import { ChatbotEmbedCodes } from '../components/ChatbotEmbedCodes';
 
 export const ChatbotTest: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -91,6 +92,12 @@ export const ChatbotTest: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Embed Codes */}
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Embed Codes</h2>
+            {id && <ChatbotEmbedCodes assistantId={id} />}
           </div>
 
           {/* Test Area */}
