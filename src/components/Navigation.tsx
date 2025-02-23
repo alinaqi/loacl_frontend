@@ -1,101 +1,94 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { UserMenu } from './UserMenu';
 
-export const Navigation = () => {
+export const Navigation: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
 
-  const links = [
-    { path: '/', label: 'Home' },
-    { path: '/basic', label: 'Basic Demo' },
-    { path: '/ecommerce', label: 'E-commerce Demo' },
-    { path: '/support', label: 'Support Demo' },
-    { path: '/features', label: 'Features' },
-    { path: '/chatbot-playground', label: 'Playground' },
-  ];
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const isActive = (path: string) => {
+    if (path === '/demos') {
+      return location.pathname.startsWith(path);
+    }
+    return location.pathname === path;
   };
 
   return (
-    <div className="bg-white shadow-sm mb-8">
+    <nav className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="text-2xl font-bold text-indigo-600">
+              <Link to="/" className="text-xl font-bold text-gray-800">
                 LOACL
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {links.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
-                    location.pathname === link.path
-                      ? 'border-b-2 border-indigo-500 text-gray-900'
-                      : 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
-            {isAuthenticated ? (
-              <>
+              <Link
+                to="/"
+                className={`${
+                  isActive('/') 
+                    ? 'border-indigo-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+              >
+                Home
+              </Link>
+              <Link
+                to="/demos"
+                className={`${
+                  isActive('/demos')
+                    ? 'border-indigo-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+              >
+                Demos
+              </Link>
+              {isAuthenticated && (
                 <Link
                   to="/dashboard"
-                  className={`text-sm font-medium ${
-                    location.pathname === '/dashboard'
-                      ? 'text-gray-900'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`${
+                    isActive('/dashboard')
+                      ? 'border-indigo-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                 >
                   Dashboard
                 </Link>
-                <Link
-                  to="/profile"
-                  className={`text-sm font-medium ${
-                    location.pathname === '/profile'
-                      ? 'text-gray-900'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Profile
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="text-sm font-medium text-gray-500 hover:text-gray-700"
-                >
-                  Sign Out
-                </button>
-              </>
+              )}
+            </div>
+          </div>
+          <div className="hidden sm:ml-6 sm:flex sm:items-center">
+            {isAuthenticated ? (
+              <UserMenu />
             ) : (
-              <>
+              <div className="flex space-x-4">
                 <Link
                   to="/signin"
-                  className="text-sm font-medium text-gray-500 hover:text-gray-700"
+                  className={`${
+                    isActive('/signin')
+                      ? 'bg-gray-100 text-gray-900'
+                      : 'text-gray-500 hover:text-gray-900'
+                  } px-3 py-2 rounded-md text-sm font-medium`}
                 >
-                  Sign In
+                  Sign in
                 </Link>
                 <Link
                   to="/signup"
-                  className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-md"
+                  className={`${
+                    isActive('/signup')
+                      ? 'bg-indigo-100 text-indigo-700'
+                      : 'text-indigo-600 hover:text-indigo-900'
+                  } px-3 py-2 rounded-md text-sm font-medium`}
                 >
-                  Sign Up
+                  Sign up
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </nav>
   );
 }; 

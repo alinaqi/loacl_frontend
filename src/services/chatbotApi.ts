@@ -25,8 +25,6 @@ export const chatbotApi = {
           'X-API-Key': BACKEND_API_KEY
         }
       });
-      // Store the OpenAI API key for future OpenAI API calls
-      localStorage.setItem('openai_api_key', data.api_key);
       return response.data;
     } catch (error) {
       console.error('Error creating chatbot:', error);
@@ -89,20 +87,6 @@ export const chatbotApi = {
       return response.data.code;
     } catch (error) {
       console.error('Error getting widget code:', error);
-      throw error;
-    }
-  },
-
-  getChatbotApiKey: async (assistantId: string): Promise<{ api_key: string }> => {
-    try {
-      const response = await api.get<{ api_key: string }>(`/assistants/${assistantId}/api-key`, {
-        headers: {
-          'X-API-Key': BACKEND_API_KEY
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error getting chatbot API key:', error);
       throw error;
     }
   }

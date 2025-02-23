@@ -140,8 +140,9 @@ export const ChatbotTest: React.FC = () => {
                     showVoiceInput: true,
                     showEmoji: true,
                   }}
-                  previewMode={true}
+                  previewMode={false}
                   assistantId={id}
+                  apiKey={import.meta.env.VITE_BACKEND_KEY}
                 />
               </div>
             )}

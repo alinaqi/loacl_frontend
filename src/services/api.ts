@@ -1,10 +1,10 @@
 import axios, { AxiosError } from 'axios';
 import { SignInCredentials, SignUpCredentials, AuthResponse, ApiErrorResponse, User } from '../types/auth';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },

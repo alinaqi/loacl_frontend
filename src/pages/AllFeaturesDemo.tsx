@@ -1,32 +1,42 @@
-import React, { useState } from 'react';
-import { ChatWidget } from '../components/ChatWidget';
+import React, { useState, useEffect } from 'react';
 import { CodeSnippets } from '../components/CodeSnippets';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 
-interface DemoSection {
-  title: string;
-  description: string;
-  config: {
-    customStyles?: {
-      '--primary-color'?: string;
-      '--secondary-color'?: string;
-      '--text-color'?: string;
-      '--bg-color'?: string;
-      '--widget-width'?: string;
-      '--widget-height'?: string;
-      '--border-radius'?: string;
-      '--font-family'?: string;
-      '--font-size'?: string;
-      '--message-bubble-color'?: string;
-      '--user-message-color'?: string;
-    };
-    position?: 'left' | 'right';
-    features?: {
-      showFileUpload?: boolean;
-      showVoiceInput?: boolean;
-      showEmoji?: boolean;
-    };
+// Extend Window interface to include our widget initialization function
+declare global {
+  interface Window {
+    initLOACLWidget: (config: {
+      position: 'floating' | 'inpage';
+      containerId: string;
+      apiKey: string;
+      assistantId: string;
+      apiUrl: string;
+      styles?: {
+        primary: string;
+        textPrimary: string;
+        background: string;
+        borderRadius: string;
+        width: string;
+        height: string;
+      };
+    }) => void;
+  }
+}
+
+interface WidgetConfig {
+  customStyles?: {
+    '--primary-color'?: string;
+    '--secondary-color'?: string;
+    '--text-color'?: string;
+    '--bg-color'?: string;
+    '--font-family'?: string;
+    '--font-size'?: string;
+    '--message-bubble-color'?: string;
+    '--user-message-color'?: string;
+  };
+  features?: {
+    showFileUpload?: boolean;
+    showVoiceInput?: boolean;
+    showEmoji?: boolean;
   };
 }
 
@@ -192,9 +202,71 @@ export const CustomPositionDemo = () => {
 
 export const AllFeaturesDemo: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
-  const { accessToken } = useAuth();
+  const BACKEND_KEY = import.meta.env.VITE_BACKEND_KEY;
+  const ASSISTANT_ID = import.meta.env.VITE_ASSISTANT_ID;
 
-  const demoSections: DemoSection[] = [
+  // Function to reinitialize widget with new styles
+  const initializeWidget = (config?: WidgetConfig) => {
+    // Remove existing widget if any
+    const existingContainer = document.getElementById('loacl-widget-container');
+    if (existingContainer) {
+      existingContainer.remove();
+    }
+
+    // Initialize the widget with our environment variables and optional config
+    window.initLOACLWidget({
+      position: 'floating',
+      containerId: 'loacl-widget-container',
+      apiKey: BACKEND_KEY,
+      assistantId: ASSISTANT_ID,
+      apiUrl: 'http://localhost:8000',
+      styles: {
+        primary: config?.customStyles?.['--primary-color'] || '#2563eb',
+        textPrimary: '#FFFFFF',
+        background: config?.customStyles?.['--bg-color'] || '#FFFFFF',
+        borderRadius: '0.5rem',
+        width: '384px',
+        height: '600px'
+      }
+    });
+  };
+
+  // Initialize widget when component mounts
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = '/widgets/examples/embed.js';
+    script.async = true;
+    script.onload = () => {
+      initializeWidget();
+    };
+    document.body.appendChild(script);
+
+    // Cleanup
+    return () => {
+      document.body.removeChild(script);
+      // Remove widget container if it exists
+      const container = document.getElementById('loacl-widget-container');
+      if (container) {
+        container.remove();
+      }
+    };
+  }, []);
+
+  // Effect to update widget styles when active section changes
+  useEffect(() => {
+    if (!window.initLOACLWidget) return;
+
+    if (activeSection) {
+      const selectedSection = demoSections.find(section => section.title === activeSection);
+      if (selectedSection) {
+        initializeWidget(selectedSection.config);
+      }
+    } else {
+      initializeWidget();
+    }
+  }, [activeSection]);
+
+  const demoSections = [
     {
       title: 'Basic Chat',
       description: 'Default chat widget with all standard features enabled.',
@@ -239,6 +311,7 @@ export const AllFeaturesDemo: React.FC = () => {
         customStyles: {
           '--primary-color': '#059669',
           '--secondary-color': '#047857',
+          '--bg-color': '#ffffff',
         },
         features: {
           showFileUpload: true,
@@ -254,6 +327,7 @@ export const AllFeaturesDemo: React.FC = () => {
         customStyles: {
           '--primary-color': '#dc2626',
           '--secondary-color': '#b91c1c',
+          '--bg-color': '#ffffff',
         },
         features: {
           showFileUpload: false,
@@ -269,6 +343,7 @@ export const AllFeaturesDemo: React.FC = () => {
         customStyles: {
           '--primary-color': '#f59e0b',
           '--secondary-color': '#d97706',
+          '--bg-color': '#ffffff',
         },
         features: {
           showFileUpload: false,
@@ -279,80 +354,76 @@ export const AllFeaturesDemo: React.FC = () => {
     },
     {
       title: 'Custom Position',
-      description: 'Chat widget positioned on the left side.',
+      description: 'Chat widget with custom styling.',
       config: {
-        position: 'left',
         customStyles: {
           '--primary-color': '#8b5cf6',
           '--secondary-color': '#7c3aed',
+          '--bg-color': '#ffffff',
         },
       },
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            LOACL Chat Widget Features
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Explore all the features and capabilities of our chat widget through these interactive examples.
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
+          <div className="font-bold text-xl text-gray-900">LOACL Features</div>
         </div>
+      </nav>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {demoSections.map((section) => (
-            <div
-              key={section.title}
-              className="bg-white rounded-lg shadow-lg overflow-hidden"
-            >
-              <div className="p-6">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                  {section.title}
-                </h2>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Feature Showcase</h1>
+            <p className="text-xl text-gray-600">
+              Click on any feature card below to see how the chat widget transforms with different styles and configurations
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {demoSections.map((section) => (
+              <div
+                key={section.title}
+                onClick={() => setActiveSection(activeSection === section.title ? null : section.title)}
+                className={`bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${
+                  activeSection === section.title ? 'ring-2 ring-blue-500' : ''
+                }`}
+              >
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">{section.title}</h2>
                 <p className="text-gray-600 mb-4">{section.description}</p>
-                <button
-                  onClick={() => setActiveSection(activeSection === section.title ? null : section.title)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                <div
+                  className={`text-sm font-medium ${
+                    activeSection === section.title ? 'text-blue-600' : 'text-blue-500'
+                  }`}
                 >
-                  {activeSection === section.title ? 'Hide Demo' : 'Show Demo'}
-                </button>
-              </div>
-              {activeSection === section.title && (
-                <div className="border-t border-gray-200 p-6 bg-gray-50 relative" style={{ height: '400px' }}>
-                  <ChatWidget
-                    {...section.config}
-                    previewMode={true}
-                    accessToken={accessToken}
-                  />
+                  {activeSection === section.title ? 'Currently Active' : 'Click to Preview'}
                 </div>
-              )}
+              </div>
+            ))}
+          </div>
+
+          {activeSection && (
+            <div className="mt-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Implementation</h2>
+              <CodeSnippets
+                snippets={demoSnippets.filter((snippet) => snippet.title === activeSection)}
+              />
             </div>
-          ))}
-        </div>
-
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
-            Implementation Examples
-          </h2>
-          <CodeSnippets snippets={demoSnippets} />
-        </div>
-
-        <div className="text-center">
-          <p className="text-gray-600">
-            Visit our{' '}
-            <Link
-              to="/chatbot-playground"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              Interactive Playground
-            </Link>
-            to customize the chat widget to your needs.
-          </p>
+          )}
         </div>
       </div>
+
+      <footer className="bg-white border-t mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <p className="text-center text-gray-500">
+            {activeSection 
+              ? `Currently previewing: ${activeSection}. Click the card again to reset to default style.`
+              : 'Click any feature card above to preview different widget styles and configurations.'}
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }; 

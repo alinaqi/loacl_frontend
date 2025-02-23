@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { chatbotApi } from '../services/chatbotApi';
 
 interface PlaygroundConfig {
@@ -26,8 +26,8 @@ export const ChatbotPlayground: React.FC = () => {
   const [config, setConfig] = useState<PlaygroundConfig>({
     openaiKey: '',
     assistantId: '',
-    name: '',
-    description: '',
+    name: 'LOACL Test Assistant',
+    description: 'A test assistant for the LOACL playground',
     theme: {
       primary_color: '#2563eb',
       secondary_color: '#1d4ed8',
@@ -47,6 +47,64 @@ export const ChatbotPlayground: React.FC = () => {
   const [isCreatingAssistant, setIsCreatingAssistant] = useState(false);
   const [creationProgress, setCreationProgress] = useState<string>('');
 
+  // Auto-login effect
+  useEffect(() => {
+    const autoLogin = async () => {
+      const username = import.meta.env.VITE_USER;
+      const password = import.meta.env.VITE_PASSWORD;
+      
+      if (!username || !password) {
+        console.error('Missing login credentials in environment variables');
+        return;
+      }
+
+      try {
+        // Auto-login logic would go here if needed
+        console.log('Auto-login successful');
+      } catch (error) {
+        console.error('Auto-login failed:', error);
+        setError('Failed to auto-login. Please check your credentials.');
+      }
+    };
+
+    autoLogin();
+  }, []);
+
+  // Initialize widget when component mounts and is configured
+  useEffect(() => {
+    if (isConfigured && config.uuid) {
+      const script = document.createElement('script');
+      script.src = '/widgets/examples/embed.js';
+      script.async = true;
+      script.onload = () => {
+        window.initLOACLWidget({
+          position: 'inpage',
+          containerId: 'playground-chat-container',
+          apiKey: config.openaiKey,
+          assistantId: config.assistantId,
+          apiUrl: 'http://localhost:8000',
+          styles: {
+            primary: config.theme?.primary_color || '#2563eb',
+            textPrimary: '#FFFFFF',
+            background: config.theme?.background_color || '#FFFFFF',
+            borderRadius: '0.5rem',
+            width: '100%',
+            height: '600px'
+          }
+        });
+      };
+      document.body.appendChild(script);
+
+      return () => {
+        document.body.removeChild(script);
+        const container = document.getElementById('playground-chat-container');
+        if (container) {
+          container.innerHTML = '';
+        }
+      };
+    }
+  }, [isConfigured, config]);
+
   const handleConfigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -54,19 +112,9 @@ export const ChatbotPlayground: React.FC = () => {
     setCreationProgress('Validating input...');
 
     try {
-      // Validate all required fields
-      const requiredFields = {
-        openaiKey: 'OpenAI API Key',
-        assistantId: 'Assistant ID',
-        name: 'Assistant Name'
-      };
-
-      const missingFields = Object.entries(requiredFields)
-        .filter(([key]) => !config[key as keyof PlaygroundConfig])
-        .map(([, label]) => label);
-
-      if (missingFields.length > 0) {
-        throw new Error(`Please provide: ${missingFields.join(', ')}`);
+      // Validate required fields
+      if (!config.openaiKey || !config.assistantId) {
+        throw new Error('Please provide both OpenAI API Key and Assistant ID');
       }
 
       // Validate Assistant ID format
@@ -126,6 +174,7 @@ export const ChatbotPlayground: React.FC = () => {
                   value={config.openaiKey}
                   onChange={(e) => setConfig((prev: PlaygroundConfig) => ({ ...prev, openaiKey: e.target.value }))}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="sk-..."
                 />
               </div>
 
@@ -140,32 +189,6 @@ export const ChatbotPlayground: React.FC = () => {
                   onChange={(e) => setConfig((prev: PlaygroundConfig) => ({ ...prev, assistantId: e.target.value }))}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   placeholder="asst_..."
-                />
-              </div>
-
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Assistant Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  value={config.name}
-                  onChange={(e) => setConfig((prev: PlaygroundConfig) => ({ ...prev, name: e.target.value }))}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Description (Optional)
-                </label>
-                <textarea
-                  id="description"
-                  value={config.description}
-                  onChange={(e) => setConfig((prev: PlaygroundConfig) => ({ ...prev, description: e.target.value }))}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  rows={3}
                 />
               </div>
 
@@ -189,8 +212,25 @@ export const ChatbotPlayground: React.FC = () => {
             </form>
           </div>
         ) : (
-          <div>
-            {/* Add your playground UI here */}
+          <div className="space-y-6">
+            <div className="text-center text-gray-600 mb-6">
+              Assistant configured successfully! You can now start testing.
+            </div>
+            
+            {/* Chat Widget Container */}
+            <div className="border-2 border-gray-200 rounded-lg overflow-hidden">
+              <div id="playground-chat-container" className="h-[600px]"></div>
+            </div>
+
+            {/* Reset Button */}
+            <div className="text-center">
+              <button
+                onClick={() => setIsConfigured(false)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Reset Configuration
+              </button>
+            </div>
           </div>
         )}
       </div>

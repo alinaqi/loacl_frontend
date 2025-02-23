@@ -1,22 +1,43 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navigation } from './components/Navigation';
 import { Footer } from './components/Footer';
-import { BasicDemo } from './pages/BasicDemo';
-import { EcommerceDemo } from './pages/EcommerceDemo';
-import { SupportDemo } from './pages/SupportDemo';
-import { AllFeaturesDemo } from './pages/AllFeaturesDemo';
+import { Demos } from './pages/Demos';
 import { SignIn } from './components/auth/SignIn';
 import { SignUp } from './components/auth/SignUp';
 import { Dashboard } from './pages/Dashboard';
-import { ChatbotPlayground } from './pages/ChatbotPlayground';
 import { UserProfile } from './pages/UserProfile';
 import { ChatbotTest } from './pages/ChatbotTest';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Widget } from './pages/Widget';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login, isLoading } = useAuth();
+  
+  useEffect(() => {
+    const autoLogin = async () => {
+      const username = import.meta.env.VITE_USER;
+      const password = import.meta.env.VITE_PASSWORD;
+      
+      if (!isAuthenticated && username && password) {
+        try {
+          await login({ email: username, password: password });
+        } catch (error) {
+          console.error('Auto-login failed:', error);
+        }
+      }
+    };
+
+    autoLogin();
+  }, [isAuthenticated, login]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/signin" replace />;
@@ -128,10 +149,7 @@ function App() {
             <div className="flex-grow">
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/basic" element={<BasicDemo />} />
-                <Route path="/ecommerce" element={<EcommerceDemo />} />
-                <Route path="/support" element={<SupportDemo />} />
-                <Route path="/features" element={<AllFeaturesDemo />} />
+                <Route path="/demos/*" element={<Demos />} />
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route
@@ -139,14 +157,6 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chatbot-playground"
-                  element={
-                    <ProtectedRoute>
-                      <ChatbotPlayground />
                     </ProtectedRoute>
                   }
                 />
@@ -166,6 +176,12 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                {/* Redirect old routes to demos page */}
+                <Route path="/basic" element={<Navigate to="/demos" replace />} />
+                <Route path="/ecommerce" element={<Navigate to="/demos" replace />} />
+                <Route path="/support" element={<Navigate to="/demos" replace />} />
+                <Route path="/features" element={<Navigate to="/demos" replace />} />
+                <Route path="/chatbot-playground" element={<Navigate to="/demos" replace />} />
               </Routes>
             </div>
             <Footer />
