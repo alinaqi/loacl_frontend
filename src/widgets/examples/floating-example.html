@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floating Chat Widget Example</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-4xl mx-auto p-8">
+        <h1 class="text-3xl font-bold mb-8">Floating Chat Widget Example</h1>
+        
+        <!-- Content -->
+        <div class="bg-white rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Page Content</h2>
+            <p class="mb-4">This is an example page showing how the floating chat widget appears in the bottom-right corner.</p>
+            <p class="mb-4">The widget will stay fixed in position as you scroll the page.</p>
+            <p class="mb-4">Make sure to replace YOUR_API_KEY and YOUR_ASSISTANT_ID with your actual LOACL credentials.</p>
+            
+            <!-- Add some dummy content to make the page scrollable -->
+            <div class="space-y-4">
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
+                <p>Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua...</p>
+                <!-- Repeat several times -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Widget Script -->
+    <script src="embed.js"></script>
+    <script>
+        // Initialize the widget with your LOACL credentials
+        initLOACLWidget({
+            position: 'floating',
+            apiKey: 'YOUR_API_KEY',
+            assistantId: 'YOUR_ASSISTANT_ID',
+            apiUrl: 'http://localhost:8000',
+            styles: {
+                primary: '#3B82F6',
+                textPrimary: '#FFFFFF',
+                background: '#FFFFFF',
+                borderRadius: '0.5rem'
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inpage Chat Widget Example</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">Inpage Chat Widget Example</h1>
+        
+        <!-- Content -->
+        <div class="bg-white rounded-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Page Content</h2>
+            <p class="mb-4">This is an example of how the chat widget can be embedded directly in the page content.</p>
+            <p class="mb-4">Make sure to replace YOUR_API_KEY and YOUR_ASSISTANT_ID with your actual LOACL credentials.</p>
+        </div>
+
+        <!-- Widget Container -->
+        <div id="chat-widget-container"></div>
+    </div>
+
+    <!-- Widget Script -->
+    <script src="embed.js"></script>
+    <script>
+        // Initialize the widget with your LOACL credentials
+        initLOACLWidget({
+            position: 'inpage',
+            containerId: 'chat-widget-container',
+            apiKey: 'YOUR_API_KEY',
+            assistantId: 'YOUR_ASSISTANT_ID',
+            apiUrl: 'http://localhost:8000',
+            styles: {
+                primary: '#3B82F6',
+                textPrimary: '#FFFFFF',
+                background: '#FFFFFF',
+                borderRadius: '0.5rem'
+            }
+        });
+    </script>
+</body>
+</html> 
